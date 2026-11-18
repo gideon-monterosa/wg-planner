@@ -292,7 +292,7 @@ function ItemForm({ item, people, rooms, me }: { item: ItemDetail; people: Perso
 
       {item.canEdit && (
         <button type="button" className={`${BTN} text-red-600`} disabled={del.isPending}
-          onClick={() => window.confirm(`Delete "${item.name}"?`) && del.mutate(item.id, { onSuccess: () => navigate("/") })}>
+          onClick={() => window.confirm(`Delete "${item.name}"?`) && del.mutate(item.id, { onSuccess: () => navigate("/", { replace: true }) })}>
           Delete item
         </button>
       )}
