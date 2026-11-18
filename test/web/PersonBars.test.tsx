@@ -10,7 +10,7 @@ const mode = { me: { ownCents: 22900, sharedCents: 1900, totalCents: 24800 }, ro
 it("renders a bar per person and hides empty together/unassigned rows", () => {
   render(<PersonBars mode={mode} />);
   expect(screen.getByText("Gideon")).toBeInTheDocument();
-  expect(screen.getByText("€248")).toBeInTheDocument();
+  expect(screen.getByText("CHF 248.–")).toBeInTheDocument();
   expect(screen.queryByText("Paid together")).toBeNull();
   expect(screen.getByText("Nobody set yet")).toBeInTheDocument();
 });
@@ -18,7 +18,7 @@ it("renders a bar per person and hides empty together/unassigned rows", () => {
 it("shows a tooltip on segment focus and a table view", () => {
   render(<PersonBars mode={mode} />);
   fireEvent.focus(screen.getByRole("img", { name: /Gideon · own things/ }));
-  expect(screen.getByRole("tooltip")).toHaveTextContent("Gideon · own things · €229");
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Gideon · own things · CHF 229.–");
   fireEvent.click(screen.getByRole("button", { name: "Show as table" }));
   expect(screen.getByRole("table")).toBeInTheDocument();
 });

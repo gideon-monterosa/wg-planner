@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { OverviewMode, OverviewRow } from "../../shared/types.ts";
-import { formatEuro } from "../format.ts";
+import { formatChf } from "../format.ts";
 
 interface Seg { part: string; cents: number; color: string }
 
@@ -51,9 +51,9 @@ export default function PersonBars({ mode }: { mode: OverviewMode }) {
             {rows.map((r) => (
               <tr key={r.key} className="border-t" style={{ borderColor: "var(--line)" }}>
                 <td className="py-1">{r.label}</td>
-                <td className="text-right tabular-nums">{formatEuro(r.ownCents)}</td>
-                <td className="text-right tabular-nums">{formatEuro(r.sharedCents)}</td>
-                <td className="text-right tabular-nums">{formatEuro(r.ownCents + r.sharedCents)}</td>
+                <td className="text-right tabular-nums">{formatChf(r.ownCents)}</td>
+                <td className="text-right tabular-nums">{formatChf(r.sharedCents)}</td>
+                <td className="text-right tabular-nums">{formatChf(r.ownCents + r.sharedCents)}</td>
               </tr>
             ))}
           </tbody>
@@ -70,7 +70,7 @@ export default function PersonBars({ mode }: { mode: OverviewMode }) {
                   <div className="flex-1 min-w-0" data-testid="track">
                   <div className="flex gap-[2px] h-3" data-testid="bar" style={{ width: `${(total / max) * 100}%`, minWidth: total > 0 ? 6 : 0 }}>
                     {segs.map((s, i) => {
-                      const text = `${r.label} · ${s.part} · ${formatEuro(s.cents)}`;
+                      const text = `${r.label} · ${s.part} · ${formatChf(s.cents)}`;
                       return (
                         <div
                           key={s.part}
@@ -92,7 +92,7 @@ export default function PersonBars({ mode }: { mode: OverviewMode }) {
                     })}
                   </div>
                   </div>
-                  <span className="text-sm tabular-nums shrink-0">{formatEuro(total)}</span>
+                  <span className="text-sm tabular-nums shrink-0">{formatChf(total)}</span>
                 </div>
               </div>
             );

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import PersonBars from "../components/PersonBars.tsx";
 import { useOverview } from "../api.ts";
-import { formatEuro } from "../format.ts";
+import { formatChf } from "../format.ts";
 
 export default function Overview() {
   const q = useOverview();
@@ -27,7 +27,7 @@ export default function Overview() {
         {tiles.map(([l, c]) => (
           <div key={l} className="rounded-[10px] border p-2.5" style={{ borderColor: "var(--line)" }}>
             <div className="text-[11px]" style={{ color: "var(--muted)" }}>{l}</div>
-            <div className="text-xl font-semibold tabular-nums">{formatEuro(c)}</div>
+            <div className="text-xl font-semibold tabular-nums">{formatChf(c)}</div>
           </div>
         ))}
       </div>

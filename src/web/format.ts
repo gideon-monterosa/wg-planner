@@ -1,31 +1,39 @@
 import type { PriceInfo } from "../shared/types.ts";
 
-const euro = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR" });
-const euroWhole = new Intl.NumberFormat("en-IE", { style: "currency", currency: "EUR", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+/** Swiss style amount: 749.– / 19.90 / 1'190.– (apostrophe thousands separator). */
+function amount(cents: number): string {
+  const francs = Math.floor(cents / 100);
+  const rappen = cents % 100;
+  const grouped = String(francs).replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+  return rappen === 0 ? `${grouped}.–` : `${grouped}.${String(rappen).padStart(2, "0")}`;
+}
 
-export function formatEuro(cents: number): string {
-  return cents % 100 === 0 ? euroWhole.format(cents / 100) : euro.format(cents / 100);
+export function formatChf(cents: number): string {
+  return `CHF ${amount(cents)}`;
 }
 
 export function formatPrice(p: PriceInfo): string {
   switch (p.kind) {
     case "paid":
     case "favorite":
-      return formatEuro(p.cents);
+      return formatChf(p.cents);
     case "own":
-      return `≈ ${formatEuro(p.cents)}`;
+      return `≈ ${formatChf(p.cents)}`;
     case "range":
-      if (p.minCents === p.maxCents) return formatEuro(p.minCents);
-      // euro sign once: "€150–260"
-      return `${formatEuro(p.minCents)}–${formatEuro(p.maxCents).replace(/^€/, "")}`;
+      if (p.minCents === p.maxCents) return formatChf(p.minCents);
+      // currency once: "CHF 150–260.–"
+      return `CHF ${amount(p.minCents).replace(/\.–$/, "")}–${amount(p.maxCents)}`;
     case "none":
       return "";
   }
 }
 
-/** Parses user-typed euro amounts to cents. "" -> null; garbage/negative -> "invalid". */
-export function parseEuroInput(s: string): number | null | "invalid" {
-  const t = s.replace(/[€\s]/g, "");
+/** Parses user-typed CHF amounts to cents ("19.90", "19,9", "1'190.–", "CHF 19.-"). "" -> null; garbage/negative -> "invalid". */
+export function parseChfInput(s: string): number | null | "invalid" {
+  const t = s
+    .replace(/CHF|Fr\./gi, "")
+    .replace(/[\s'’]/g, "")
+    .replace(/[.,]?[-–]$/, "");
   if (t === "") return null;
   if (!/^[\d.,]+$/.test(t)) return "invalid";
   const lastDot = t.lastIndexOf(".");

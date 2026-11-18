@@ -8,7 +8,7 @@ Spec: [design](superpowers/specs/2026-11-18-wg-planner-design.md) · Plan: [v1 p
 **The moving list**
 - Items are grouped by room, with a subtotal per room and a "No room" block at the end.
 - Filters: All, Shared, Mine, Still needed.
-- Quick add takes a name, plus an optional room and price. Prices can be typed German- or English-style ("19,99", "1.190").
+- Quick add takes a name, plus an optional room and price. Prices can be typed German- or English-style ("19,90", "1'190", "19.–").
 
 **Items and ideas**
 - Each item has a room, who it's for (Everyone or Just me), quantity, status (needed → decided → bought, or already owned), paid by (a person, Together, or not set), price paid and notes.
@@ -17,7 +17,7 @@ Spec: [design](superpowers/specs/2026-11-18-wg-planner-design.md) · Plan: [v1 p
 - Price shown, in this order:
   1. the price paid
   2. the starred idea's price
-  3. the item's own price, shown as "≈ €19"
+  3. the item's own price, shown as "≈ CHF 19.–"
   4. a range across the ideas, which isn't counted in totals
 
   Owned items have no price at all.

@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { Room } from "../../shared/types.ts";
 import { useCreateItem } from "../api.ts";
-import { parseEuroInput } from "../format.ts";
+import { parseChfInput } from "../format.ts";
 
 export default function QuickAdd({ rooms }: { rooms: Room[] }) {
   const create = useCreateItem();
@@ -14,7 +14,7 @@ export default function QuickAdd({ rooms }: { rooms: Room[] }) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
-    const cents = parseEuroInput(price);
+    const cents = parseChfInput(price);
     if (cents === "invalid") {
       setPriceError(true);
       return;
@@ -54,7 +54,7 @@ export default function QuickAdd({ rooms }: { rooms: Room[] }) {
         aria-label="Price"
         aria-invalid={priceError}
         inputMode="decimal"
-        placeholder="Price (€)"
+        placeholder="Price (CHF)"
         value={price}
         onChange={(e) => {
           setPrice(e.target.value);

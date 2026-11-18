@@ -72,7 +72,7 @@ they're paying for shared things, and the total for the whole flat.
   app must also work on its free `*.workers.dev` address until the domain is
   sorted.
 - **Phone first.** Every screen has to work well at phone width.
-- **Currency:** euros only.
+- **Currency:** Swiss francs (CHF) only, shown Swiss-style ("CHF 749.–", "CHF 19.90"). (Changed by Gideon after v1.)
 - **Tools come from mise.** Every tool the project needs (Node, the `cf`
   CLI, the package manager) is pinned in the project's `mise.toml`, and
   nothing is installed globally. (Gideon's requirement; see 7.6.)

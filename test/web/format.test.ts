@@ -1,25 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { formatEuro, formatPrice, parseEuroInput } from "../../src/web/format";
+import { formatChf, formatPrice, parseChfInput } from "../../src/web/format";
 
-describe("parseEuroInput", () => {
-  it.each([["19", 1900], ["19,99", 1999], ["19.99", 1999], ["€ 19,5", 1950], ["1.190", 119000], ["1,190", 119000], ["1.190,50", 119050], ["1,190.50", 119050]])(
-    "parses %s", (s, cents) => expect(parseEuroInput(s)).toBe(cents));
+describe("parseChfInput", () => {
+  it.each([["19", 1900], ["19,99", 1999], ["19.99", 1999], ["CHF 19,5", 1950], ["19.–", 1900], ["Fr. 19.-", 1900], ["1'190.–", 119000], ["1.190", 119000], ["1,190", 119000], ["1.190,50", 119050], ["1,190.50", 119050]])(
+    "parses %s", (s, cents) => expect(parseChfInput(s)).toBe(cents));
   it("empty is null, garbage is invalid", () => {
-    expect(parseEuroInput("  ")).toBeNull();
-    expect(parseEuroInput("abc")).toBe("invalid");
-    expect(parseEuroInput("-5")).toBe("invalid");
+    expect(parseChfInput("  ")).toBeNull();
+    expect(parseChfInput("abc")).toBe("invalid");
+    expect(parseChfInput("-5")).toBe("invalid");
   });
 });
 
 describe("formatting", () => {
   it("formats prices", () => {
-    expect(formatPrice({ kind: "own", cents: 1900 })).toBe("≈ €19");
-    expect(formatPrice({ kind: "favorite", cents: 119000 })).toBe("€1,190");
-    expect(formatPrice({ kind: "paid", cents: 74900 })).toBe("€749");
-    expect(formatPrice({ kind: "range", minCents: 15000, maxCents: 26000 })).toBe("€150–260");
+    expect(formatPrice({ kind: "own", cents: 1900 })).toBe("≈ CHF 19.–");
+    expect(formatPrice({ kind: "favorite", cents: 119000 })).toBe("CHF 1'190.–");
+    expect(formatPrice({ kind: "paid", cents: 74900 })).toBe("CHF 749.–");
+    expect(formatPrice({ kind: "range", minCents: 15000, maxCents: 26000 })).toBe("CHF 150–260.–");
     expect(formatPrice({ kind: "none" })).toBe("");
-    expect(formatPrice({ kind: "range", minCents: 74900, maxCents: 74900 })).toBe("€749");
-    expect(formatEuro(1999)).toBe("€19.99");
-    expect(formatEuro(74900)).toBe("€749");
+    expect(formatPrice({ kind: "range", minCents: 74900, maxCents: 74900 })).toBe("CHF 749.–");
+    expect(formatChf(1999)).toBe("CHF 19.99");
+    expect(formatChf(74900)).toBe("CHF 749.–");
   });
 });

@@ -5,7 +5,7 @@ import {
   usePeople, useRooms, useSetFavorite,
 } from "../api.ts";
 import type { ItemInput } from "../api.ts";
-import { formatEuro, parseEuroInput } from "../format.ts";
+import { formatChf, parseChfInput } from "../format.ts";
 import PriceLabel from "../components/PriceLabel.tsx";
 import StatusPill from "../components/StatusPill.tsx";
 import type { Idea, ItemDetail, Payer, Person, Room, Status } from "../../shared/types.ts";
@@ -66,14 +66,14 @@ function EuroField({
     setBad(false);
   }
   const commit = () => {
-    const parsed = parseEuroInput(text);
+    const parsed = parseChfInput(text);
     if (parsed === "invalid") return setBad(true);
     setBad(false);
     if (parsed !== cents) onSave(parsed);
   };
   return (
     <Field label={label}>
-      <input className={INPUT} inputMode="decimal" value={text} disabled={disabled} placeholder="€"
+      <input className={INPUT} inputMode="decimal" value={text} disabled={disabled} placeholder="CHF"
         aria-invalid={bad} onChange={(e) => setText(e.target.value)} onBlur={commit}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
       {bad && <span className="text-sm text-red-600">Enter an amount like 19,90</span>}
@@ -92,7 +92,7 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
   });
   const [bad, setBad] = useState(false);
   const save = () => {
-    const price = parseEuroInput(f.price);
+    const price = parseChfInput(f.price);
     if (price === "invalid" || !f.title.trim()) return setBad(true);
     setBad(false);
     patch.mutate(
@@ -112,7 +112,7 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
         <div className="flex gap-2">
           <input aria-label="Idea shop" className={INPUT} value={f.shop} onChange={set("shop")} placeholder="Shop" />
           <input aria-label={perPiece ? "Idea price per piece" : "Idea price"} className={INPUT} inputMode="decimal"
-            value={f.price} onChange={set("price")} placeholder={perPiece ? "Price per piece" : "€"} />
+            value={f.price} onChange={set("price")} placeholder={perPiece ? "Price per piece" : "CHF"} />
         </div>
         <input aria-label="Idea notes" className={INPUT} value={f.notes} onChange={set("notes")} placeholder="Notes" />
         {bad && <p className="text-sm text-red-600">Needs a title and a valid price.</p>}
@@ -141,7 +141,7 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
           <span className="truncate font-medium">
             {idea.url ? <a href={idea.url} target="_blank" rel="noreferrer noopener" className="underline">{idea.title}</a> : idea.title}
           </span>
-          {idea.priceCents !== null && <span className="tabular-nums">{formatEuro(idea.priceCents)}</span>}
+          {idea.priceCents !== null && <span className="tabular-nums">{formatChf(idea.priceCents)}</span>}
         </div>
         {idea.shop && <div className="text-sm text-[var(--muted)]">{idea.shop}</div>}
         {idea.notes && <div className="text-sm text-[var(--muted)]">{idea.notes}</div>}
@@ -166,7 +166,7 @@ function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
   const [err, setErr] = useState("");
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cents = parseEuroInput(price);
+    const cents = parseChfInput(price);
     if (!title.trim()) return setErr("Give the idea a title.");
     if (cents === "invalid") return setErr("Enter a price like 19,90.");
     setErr("");
@@ -180,7 +180,7 @@ function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
       <div className="flex gap-2">
         <input aria-label="New idea title" className={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
         <input aria-label={perPiece ? "New idea price per piece" : "New idea price"} className={`${INPUT} ${perPiece ? "max-w-36" : "max-w-28"}`}
-          inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={perPiece ? "Price per piece" : "€"} />
+          inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={perPiece ? "Price per piece" : "CHF"} />
       </div>
       {(err || add.isError) && <p className="text-sm text-red-600">{err || "Could not add the idea."}</p>}
       <button type="submit" className={BTN} disabled={add.isPending}>Add idea</button>

@@ -5,7 +5,7 @@ import { useItems, useMe, usePeople, useRooms } from "../api.ts";
 import PriceLabel from "../components/PriceLabel.tsx";
 import QuickAdd from "../components/QuickAdd.tsx";
 import StatusPill from "../components/StatusPill.tsx";
-import { formatEuro } from "../format.ts";
+import { formatChf } from "../format.ts";
 import { groupByRoom, type ListFilter } from "../grouping.ts";
 
 const FILTERS: { value: ListFilter; label: string }[] = [
@@ -69,7 +69,7 @@ export default function MovingList() {
           <section key={g.room?.id ?? "none"} className="mb-4">
             <h2 className="flex justify-between border-b border-[var(--line)] pb-1 text-sm font-semibold">
               <span>{g.room?.name ?? "No room"}</span>
-              <span className="font-normal tabular-nums text-[var(--muted)]">{formatEuro(g.subtotalCents)}</span>
+              <span className="font-normal tabular-nums text-[var(--muted)]">{formatChf(g.subtotalCents)}</span>
             </h2>
             {g.items.map((item) => (
               <button
