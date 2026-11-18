@@ -35,7 +35,7 @@ export default function PersonBars({ mode }: { mode: OverviewMode }) {
             </li>
           ))}
         </ul>
-        <button type="button" className="text-xs underline shrink-0" style={{ color: "var(--muted)" }} onClick={() => setTable((t) => !t)}>
+        <button type="button" className="text-xs underline shrink-0" style={{ color: "var(--muted)" }} onClick={() => { setTip(null); setTable((t) => !t); }}>
           {table ? "Show as chart" : "Show as table"}
         </button>
       </div>
@@ -67,7 +67,8 @@ export default function PersonBars({ mode }: { mode: OverviewMode }) {
               <div key={r.key}>
                 <div className="text-sm mb-0.5" style={r.key.startsWith("person:") ? undefined : { color: "var(--muted)" }}>{r.label}</div>
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-[2px] h-3" style={{ width: `${(total / max) * 100}%`, minWidth: total > 0 ? 6 : 0 }}>
+                  <div className="flex-1 min-w-0" data-testid="track">
+                  <div className="flex gap-[2px] h-3" data-testid="bar" style={{ width: `${(total / max) * 100}%`, minWidth: total > 0 ? 6 : 0 }}>
                     {segs.map((s, i) => {
                       const text = `${r.label} · ${s.part} · ${formatEuro(s.cents)}`;
                       return (
@@ -89,6 +90,7 @@ export default function PersonBars({ mode }: { mode: OverviewMode }) {
                         />
                       );
                     })}
+                  </div>
                   </div>
                   <span className="text-sm tabular-nums shrink-0">{formatEuro(total)}</span>
                 </div>

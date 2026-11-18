@@ -27,3 +27,13 @@ it("shows an empty message when everything is 0", () => {
   render(<PersonBars mode={{ me: { ownCents: 0, sharedCents: 0, totalCents: 0 }, rows: [{ key: "person:1", label: "Gideon", ownCents: 0, sharedCents: 0 }] }} />);
   expect(screen.getByText("Nothing to count yet.")).toBeInTheDocument();
 });
+
+it("scales bar widths relative to the largest row, inside a flexible track", () => {
+  render(<PersonBars mode={{ me: { ownCents: 0, sharedCents: 0, totalCents: 0 }, rows: [
+    { key: "person:1", label: "A", ownCents: 10000, sharedCents: 0 },
+    { key: "person:2", label: "B", ownCents: 5000, sharedCents: 0 } ] }} />);
+  const bars = screen.getAllByTestId("bar");
+  expect(bars[0].style.width).toBe("100%");
+  expect(bars[1].style.width).toBe("50%");
+  expect(bars[0].parentElement).toHaveClass("flex-1", "min-w-0");
+});
