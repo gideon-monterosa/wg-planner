@@ -75,13 +75,14 @@ Any existing checkout must run `mise run db:migrate` once again, because the loc
 
 ## Next step: deploy (plan Task 14, needs Gideon)
 
-1. Sign in once: `cf auth login`.
-2. Check whether the domain is on Cloudflare.
-3. Create the remote D1 database and migrate it.
-4. Gideon signs up for Zero Trust (Free plan; a card is asked for but not charged).
-5. Add the One-time PIN login method and create the Access app with the flatmates' emails. Set the cookie to SameSite=Lax.
-6. Fill in `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` for production, then deploy.
-7. Optionally attach `wg.<domain>`.
+Deploys now run from GitHub Actions to two environments, integration and production; see [deployment.md](deployment.md). Still to do once:
+
+1. Check whether the domain is on Cloudflare.
+2. Create the `wg-planner-int` and `wg-planner` D1 databases and put their IDs in `environments.json`.
+3. Gideon signs up for Zero Trust (Free plan; a card is asked for but not charged).
+4. Add the One-time PIN login method and create an Access app per environment with the flatmates' emails. Set the cookie to SameSite=Lax.
+5. Fill in `accessTeamDomain` and `accessAud` in `environments.json`, and add the GitHub environments and secrets.
+6. Optionally attach `wg.<domain>`.
 
 ## v2 and later
 
@@ -99,7 +100,6 @@ Security
 
 Code quality
 - Turn on strict TypeScript for the web code, and put test folders under typecheck.
-- Keep the local D1 id in one place instead of two (`cloudflare.config.ts` and `mise.toml`).
 - Close small read-then-write races (room reorder, starring, item PATCH/DELETE ownership in the `WHERE` clause).
 - Fix the first-login bootstrap race.
 - Move `insertPerson` out of `auth.ts`.
@@ -120,4 +120,4 @@ UI rough edges
 Tests
 - Thin spots: range × quantity, spent mode for the Together and Nobody-set rows, re-hiding an item, clearing a price or link, Overview page states.
 
-**Tooling note:** `@cloudflare/vite-plugin` is pinned to 1.64.0, because newer versions break `cf dev` with cf 0.15.0. Upgrade both together.
+**Tooling note:** upgraded to cf 1.0.0-rc.1 and `@cloudflare/vite-plugin` 2.0.0-rc.1, which removed the old 1.64.0 pin. Local state now lives in `.cloudflare/state`, so existing checkouts run `mise run db:migrate` once more.
