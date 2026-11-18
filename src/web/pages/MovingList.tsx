@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import type { ItemSummary, Person } from "../../shared/types.ts";
 import { useItems, useMe, usePeople, useRooms } from "../api.ts";
 import PriceLabel from "../components/PriceLabel.tsx";
@@ -46,6 +46,14 @@ export default function MovingList() {
 
   return (
     <div>
+      {people.data && people.data.length <= 1 && (
+        <Link
+          href="/settings"
+          className="mb-3 block rounded border border-[var(--line)] px-3 py-2 text-sm text-[var(--accent)]"
+        >
+          Add your flatmates and rooms →
+        </Link>
+      )}
       <QuickAdd rooms={rooms.data} />
       <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filter">
         {FILTERS.map((f) => (

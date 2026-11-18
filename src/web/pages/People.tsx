@@ -63,7 +63,7 @@ export default function People() {
   const input = "min-w-0 flex-1 rounded border border-[var(--line)] bg-transparent px-2 py-1";
   return (
     <div className="space-y-3">
-      <h1 className="text-xl font-semibold">People</h1>
+      <h2 className="text-xl font-semibold">People</h2>
       <ul className="space-y-2">
         {(people.data ?? []).map((p) => (
           <PersonRow key={p.id} person={p} />

@@ -111,7 +111,7 @@ export default function Rooms() {
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl font-semibold">Rooms</h1>
+      <h2 className="text-xl font-semibold">Rooms</h2>
       <ul className="space-y-2">
         {list.map((room, i) => (
           <RoomRow
