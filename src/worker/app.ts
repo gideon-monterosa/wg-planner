@@ -7,6 +7,7 @@ import people from "./routes/people";
 import rooms from "./routes/rooms";
 import items from "./routes/items";
 import overview from "./routes/overview";
+import ideas from "./routes/ideas";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -21,6 +22,7 @@ app.route("/", people);
 app.route("/", rooms);
 app.route("/", items);
 app.route("/", overview);
+app.route("/", ideas);
 
 app.notFound((c) => c.json({ error: "not_found", message: "Not found" }, 404));
 
