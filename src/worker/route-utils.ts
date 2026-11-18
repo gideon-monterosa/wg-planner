@@ -10,8 +10,13 @@ export function pathId(c: Context<AppEnv>, what = "Item"): number {
   return Number(raw);
 }
 
-/** Parses the JSON body. Done inside handlers (not as middleware) so visibility checks run first. */
+/**
+ * Parses the JSON body. Done inside handlers (not as middleware) so visibility checks run first.
+ * Only `application/json` is accepted: browsers cannot send that cross-site without a CORS preflight (CSRF hardening).
+ */
 export async function parseBody<T extends z.ZodType>(c: Context<AppEnv>, schema: T): Promise<z.infer<T>> {
+  const type = (c.req.header("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
+  if (type !== "application/json") fail(400, "invalid_body", "Content-Type must be application/json");
   let json: unknown;
   try {
     json = await c.req.json();

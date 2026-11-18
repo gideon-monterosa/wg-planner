@@ -20,13 +20,14 @@ export async function request<T>(method: string, path: string, body?: unknown): 
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!res.ok) {
-    let data: { error?: string; message?: string; email?: string } = {};
+    let data: { error?: unknown; message?: string; email?: string } = {};
     try {
       data = await res.json();
     } catch {
       /* non-JSON error body */
     }
-    throw new ApiError(res.status, data.error ?? "error", data.message, data.email);
+    const code = typeof data.error === "string" ? data.error : "http_error";
+    throw new ApiError(res.status, code, data.message, data.email);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

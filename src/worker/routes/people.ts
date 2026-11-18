@@ -1,10 +1,10 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { Person } from "../../shared/types";
 import type { AppEnv } from "../env";
 import { PERSON_COLUMNS, insertPerson } from "../auth";
 import { fail } from "../http";
+import { parseBody, pathId } from "../route-utils";
 
 const name = z.string().trim().min(1).max(60);
 const email = z.email().transform((e) => e.toLowerCase());
@@ -20,8 +20,11 @@ people.get("/people", async (c) => {
   return c.json(results);
 });
 
-people.post("/people", zValidator("json", z.object({ name, email })), async (c) => {
-  const body = c.req.valid("json");
+const createBody = z.object({ name, email });
+const patchBody = z.object({ name: name.optional(), email: email.optional() });
+
+people.post("/people", async (c) => {
+  const body = await parseBody(c, createBody);
   if (!(await insertPerson(c.env.DB, body.name, body.email))) {
     fail(409, "email_taken", "That email is already in use");
   }
@@ -33,10 +36,9 @@ people.post("/people", zValidator("json", z.object({ name, email })), async (c) 
 
 people.patch(
   "/people/:id",
-  zValidator("json", z.object({ name: name.optional(), email: email.optional() })),
   async (c) => {
-    const id = Number(c.req.param("id"));
-    const body = c.req.valid("json");
+    const id = pathId(c, "Person");
+    const body = await parseBody(c, patchBody);
     try {
       await c.env.DB.prepare(
         "UPDATE people SET name = COALESCE(?, name), email = COALESCE(?, email) WHERE id = ?",

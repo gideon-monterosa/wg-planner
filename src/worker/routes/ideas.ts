@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { AppEnv } from "../env";
 import { fail } from "../http";
-import { assertCanEdit, getItemDetail, getVisibleItemRow } from "../items-query";
+import { VISIBLE, assertCanEdit, getItemDetail, getVisibleItemRow } from "../items-query";
 import { parseBody, pathId } from "../route-utils";
 
 /** Hostname without `www.`, or "" when the URL is empty or invalid. */
@@ -33,10 +33,12 @@ const url = webUrl;
 const cents = z.number().int().min(0).nullable();
 const imageUrl = webUrl;
 const notes = z.string().max(2000);
+const shop = z.string().trim().max(100);
 
 const createBody = z.object({
   title,
   url: url.optional(),
+  shop: shop.optional(),
   priceCents: cents.optional(),
   imageUrl: imageUrl.optional(),
   notes: notes.optional(),
@@ -44,6 +46,7 @@ const createBody = z.object({
 const patchBody = z.object({
   title: title.optional(),
   url: url.optional(),
+  shop: shop.optional(),
   priceCents: cents.optional(),
   imageUrl: imageUrl.optional(),
   notes: notes.optional(),
@@ -62,9 +65,15 @@ interface IdeaDbRow {
   is_favorite: number;
 }
 
-/** Loads an idea and its item with the usual guards: hidden item or missing idea is 404, then edit rights. */
+/**
+ * Loads an idea and its item with the usual guards: an idea on a hidden item is the same 404 as a
+ * missing idea (so ids of hidden items cannot be probed), then edit rights.
+ */
 async function loadEditableIdea(db: D1Database, ideaId: number, meId: number) {
-  const idea = await db.prepare("SELECT * FROM ideas WHERE id = ?").bind(ideaId).first<IdeaDbRow>();
+  const idea = await db
+    .prepare(`SELECT ideas.* FROM ideas JOIN items i ON i.id = ideas.item_id WHERE ideas.id = ? AND ${VISIBLE}`)
+    .bind(ideaId, meId)
+    .first<IdeaDbRow>();
   if (!idea) fail(404, "not_found", "Idea not found");
   const item = await getVisibleItemRow(db, idea.item_id, meId);
   assertCanEdit(item, meId);
@@ -85,7 +94,7 @@ ideas.post("/items/:id/ideas", async (c) => {
       `INSERT INTO ideas (item_id, title, url, shop, price_cents, image_url, notes, created_by)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .bind(item.id, body.title, link, shopFromUrl(link), body.priceCents ?? null, body.imageUrl ?? "", body.notes ?? "", meId)
+    .bind(item.id, body.title, link, body.shop ?? shopFromUrl(link), body.priceCents ?? null, body.imageUrl ?? "", body.notes ?? "", meId)
     .run();
   return c.json(await getItemDetail(db, item.id, meId), 201);
 });
@@ -104,7 +113,7 @@ ideas.patch("/ideas/:id", async (c) => {
     .bind(
       body.title ?? idea.title,
       link,
-      body.url !== undefined ? shopFromUrl(link) : idea.shop,
+      body.shop ?? (body.url !== undefined ? shopFromUrl(link) : idea.shop),
       body.priceCents !== undefined ? body.priceCents : idea.price_cents,
       body.imageUrl ?? idea.image_url,
       body.notes ?? idea.notes,

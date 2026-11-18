@@ -18,6 +18,7 @@ describe("formatting", () => {
     expect(formatPrice({ kind: "paid", cents: 74900 })).toBe("€749");
     expect(formatPrice({ kind: "range", minCents: 15000, maxCents: 26000 })).toBe("€150–260");
     expect(formatPrice({ kind: "none" })).toBe("");
+    expect(formatPrice({ kind: "range", minCents: 74900, maxCents: 74900 })).toBe("€749");
     expect(formatEuro(1999)).toBe("€19.99");
     expect(formatEuro(74900)).toBe("€749");
   });

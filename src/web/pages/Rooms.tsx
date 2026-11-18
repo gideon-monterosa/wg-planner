@@ -23,7 +23,7 @@ function RoomRow({
   const commit = () => {
     const trimmed = name.trim();
     if (!trimmed) return setName(room.name);
-    if (trimmed !== room.name) patch.mutate({ id: room.id, name: trimmed });
+    if (trimmed !== room.name) patch.mutate({ id: room.id, name: trimmed }, { onError: () => setName(room.name) });
   };
   const onDelete = () => {
     if (window.confirm(`Delete ${room.name}? Its items move to No room.`)) remove.mutate(room.id);
@@ -38,7 +38,7 @@ function RoomRow({
     >
       <input
         aria-label={`Name of ${room.name}`}
-        className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-2 py-1 hover:border-[var(--line)]"
+        className="min-w-[10rem] flex-1 rounded border border-transparent bg-transparent px-2 py-1 hover:border-[var(--line)]"
         value={name}
         onChange={(e) => setName(e.target.value)}
         onBlur={commit}
@@ -76,6 +76,8 @@ function RoomRow({
       <button type="button" aria-label={`Delete ${room.name}`} className="rounded px-2 py-1 text-red-600" onClick={onDelete}>
         Delete
       </button>
+      {patch.isError && <p role="alert" className="basis-full text-sm text-red-600">Could not save the room. Please try again.</p>}
+      {remove.isError && <p role="alert" className="basis-full text-sm text-red-600">Could not delete the room. Please try again.</p>}
     </li>
   );
 }
@@ -127,6 +129,7 @@ export default function Rooms() {
           />
         ))}
       </ul>
+      {reorder.isError && <p role="alert" className="text-sm text-red-600">Could not reorder the rooms. Please try again.</p>}
       <form onSubmit={add} className="flex gap-2">
         <input
           aria-label="New room name"
@@ -139,6 +142,7 @@ export default function Rooms() {
           Add room
         </button>
       </form>
+      {create.isError && <p role="alert" className="text-sm text-red-600">Could not add the room. Please try again.</p>}
     </div>
   );
 }

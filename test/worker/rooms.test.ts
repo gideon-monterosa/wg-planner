@@ -97,4 +97,19 @@ describe("rooms API", () => {
     expect(item).toEqual({ room_id: null });
     expect(await list()).toHaveLength(3);
   });
+
+  it("returns {error: invalid_body, message} for a bad body on every write", async () => {
+    const rooms = await seed();
+    const cases = [
+      api("/api/rooms", { method: "POST", body: { name: "", personId: null } }),
+      api("/api/rooms/order", { method: "PUT", body: { ids: "nope" } }),
+      api(`/api/rooms/${rooms[0].id}`, { method: "PATCH", body: { name: 42 } }),
+    ];
+    for (const res of await Promise.all(cases)) {
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body).toMatchObject({ error: "invalid_body" });
+      expect(typeof body.message).toBe("string");
+    }
+  });
 });
