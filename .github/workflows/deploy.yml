@@ -27,7 +27,7 @@ jobs:
       - run: mise run typecheck
       - run: cf build --mode integration
       - name: Deploy dry run (no credentials)
-        run: cf deploy --prebuilt --mode integration --dry-run
+        run: cf deploy --prebuilt --no-provision --mode integration --dry-run
 
   deploy-integration:
     needs: check
@@ -47,7 +47,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy (integration)
-        run: cf deploy --prebuilt --mode integration
+        run: cf deploy --prebuilt --no-provision --mode integration
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -79,7 +79,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy (production)
-        run: cf deploy --prebuilt --mode production
+        run: cf deploy --prebuilt --no-provision --mode production
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

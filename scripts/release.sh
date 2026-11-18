@@ -28,4 +28,7 @@ fi
 echo "Tagging $(git rev-parse --short HEAD) as $tag and pushing the tag to origin."
 echo "GitHub Actions will deploy $tag to production."
 git tag --annotate "$tag" --message "Release $tag"
-git push origin "refs/tags/$tag"
+if ! git push origin "refs/tags/$tag"; then
+  git tag -d "$tag" >/dev/null
+  fail "pushing $tag failed; deleted the local tag so you can retry"
+fi

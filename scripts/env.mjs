@@ -23,7 +23,11 @@ if (!Object.hasOwn(environment, key)) {
 }
 
 const value = environment[key];
-if (value === null || value === "") {
+if (value === null) {
+  console.error(`environments.json: ${mode}.${key} is null (not set for this mode).`);
+  process.exit(1);
+}
+if (value === "") {
   console.error(`environments.json: ${mode}.${key} is empty. Fill it in before running this task.`);
   process.exit(1);
 }

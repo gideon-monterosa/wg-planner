@@ -44,6 +44,12 @@ and **Account Settings: Read** if `cf` asks for it.
 - **Tag `vX.Y.Z`**: after `check`, verifies the tagged commit is on `main`, then
   does the same for production.
 
+Deploys pass `--no-provision`, so they never create databases or other
+resources; create them first and put their IDs in `environments.json`.
+Each deploy job has its own concurrency group, so if two tags are pushed in
+quick succession, the queued older one can be replaced and only the newest
+reaches production.
+
 Manual fallbacks: `mise run deploy:int`, `mise run deploy:prod`,
 `mise run db:migrate:int`, `mise run db:migrate:prod`.
 

@@ -31,12 +31,12 @@ run = 'id="$(node scripts/env.mjs production d1Id)" && cf d1 migrations apply "$
 [tasks."deploy:int"]
 description = "Deploy to integration (CI does this on every push to main)"
 depends = ["test"]
-run = "cf deploy --mode integration"
+run = "cf deploy --no-provision --mode integration"
 
 [tasks."deploy:prod"]
 description = "Deploy to production (prefer `mise run release`, which lets CI deploy a tag)"
 depends = ["test"]
-run = "cf deploy --mode production"
+run = "cf deploy --no-provision --mode production"
 
 [tasks.release]
 description = "Tag main as vX.Y.Z and push the tag; CI deploys it to production. Usage: mise run release -- X.Y.Z"

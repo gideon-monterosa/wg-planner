@@ -22,6 +22,11 @@ function selectEnvironment(mode: string | undefined): Environment {
       `Unknown mode "${mode}". Expected one of: ${Object.keys(ENVIRONMENTS).join(", ")} (see environments.json).`,
     );
   }
+  if (mode !== "development" && (environment.accessTeamDomain === null || environment.accessAud === null)) {
+    throw new Error(
+      `environments.json: ${mode}.accessTeamDomain and ${mode}.accessAud must not be null. Only development may skip Cloudflare Access.`,
+    );
+  }
   return environment;
 }
 
