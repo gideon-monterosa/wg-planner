@@ -29,7 +29,10 @@ export default defineConfig(({ mode }) => ({
             ACCESS_TEAM_DOMAIN: bindings.text(""),
             ACCESS_AUD: bindings.text(""),
           }
-        : {}),
+        : {
+            // Vite plugin 2 only loads .dev.vars values for declared secrets.
+            DEV_USER_EMAIL: bindings.secret(),
+          }),
     },
   },
 }));
