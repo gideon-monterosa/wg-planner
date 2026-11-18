@@ -40,7 +40,7 @@ export default function ItemModal({ id, onClose }: { id: number; onClose: () => 
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={drag ? { transform: `translateY(${Math.max(0, drag.dy)}px)` } : undefined}
-        className="relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--bg)] text-[var(--fg)] shadow-xl outline-none md:max-w-xl md:rounded-2xl"
+        className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl bg-[var(--bg)] text-[var(--fg)] shadow-xl outline-none md:max-w-xl md:rounded-2xl ${drag ? "" : "transition-transform"}`}
       >
         <div
           className="flex shrink-0 touch-none justify-center pt-2 pb-1 md:hidden"
@@ -67,8 +67,8 @@ export default function ItemModal({ id, onClose }: { id: number; onClose: () => 
         >
           ✕
         </button>
-        <div className="overflow-y-auto overscroll-contain p-4 pt-8 md:pt-4">
-          <ItemPage />
+        <div className="overflow-y-auto overscroll-contain p-4 pt-8 md:pt-10">
+          <ItemPage onDeleted={onClose} />
         </div>
       </div>
     </div>
