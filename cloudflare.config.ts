@@ -11,6 +11,8 @@ type Environment = {
   d1Id: string;
   accessTeamDomain: string | null;
   accessAud: string | null;
+  /** Custom domain the Worker is served on; null = local only. */
+  domain: string | null;
 };
 
 const ENVIRONMENTS: Record<string, Environment> = environments;
@@ -31,6 +33,10 @@ function selectEnvironment(mode: string | undefined): Environment {
 }
 
 export default defineConfig(({ mode }) => {
+  // Plain API commands (e.g. `cf d1 list`) evaluate the config without a mode
+  // and only read account settings, so return no Worker for them.
+  // (Cast keeps the inferred Env type from the Worker branch.)
+  if (mode === undefined) return {} as never;
   const environment = selectEnvironment(mode);
   const { accessTeamDomain, accessAud } = environment;
 
@@ -42,6 +48,12 @@ export default defineConfig(({ mode }) => {
       observability: {
         enabled: true,
       },
+      // Deployed environments are reachable only on their custom domain, which
+      // sits behind Cloudflare Access. workers.dev and preview URLs stay off so
+      // nothing bypasses the login.
+      ...(environment.domain !== null
+        ? { domains: [environment.domain], workersDev: false, previewUrls: false }
+        : {}),
       assets: {
         notFoundHandling: "single-page-application",
         runWorkerFirst: ["/api/*"],
