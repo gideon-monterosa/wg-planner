@@ -148,7 +148,7 @@ export function useRoomMutations() {
   };
   return {
     create: useMutation({
-      mutationFn: (input: { name: string; personId?: number | null }) => request<Room>("POST", "/api/rooms", input),
+      mutationFn: (input: { name: string; personId: number | null }) => request<Room>("POST", "/api/rooms", input),
       onSuccess: done,
     }),
     patch: useMutation({
