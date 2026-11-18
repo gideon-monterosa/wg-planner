@@ -101,6 +101,7 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
     );
   };
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
+  const perPiece = item.quantity > 1;
 
   if (editing) {
     return (
@@ -110,7 +111,8 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
         <input aria-label="Idea image link" className={INPUT} value={f.imageUrl} onChange={set("imageUrl")} placeholder="Image link (optional)" />
         <div className="flex gap-2">
           <input aria-label="Idea shop" className={INPUT} value={f.shop} onChange={set("shop")} placeholder="Shop" />
-          <input aria-label="Idea price" className={INPUT} inputMode="decimal" value={f.price} onChange={set("price")} placeholder="€" />
+          <input aria-label={perPiece ? "Idea price per piece" : "Idea price"} className={INPUT} inputMode="decimal"
+            value={f.price} onChange={set("price")} placeholder={perPiece ? "Price per piece" : "€"} />
         </div>
         <input aria-label="Idea notes" className={INPUT} value={f.notes} onChange={set("notes")} placeholder="Notes" />
         {bad && <p className="text-sm text-red-600">Needs a title and a valid price.</p>}
@@ -155,7 +157,8 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
   );
 }
 
-function AddIdea({ itemId }: { itemId: number }) {
+function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
+  const perPiece = quantity > 1;
   const add = useAddIdea();
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -176,7 +179,8 @@ function AddIdea({ itemId }: { itemId: number }) {
       <input aria-label="New idea link" className={INPUT} value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Paste a link" />
       <div className="flex gap-2">
         <input aria-label="New idea title" className={INPUT} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" />
-        <input aria-label="New idea price" className={`${INPUT} max-w-28`} inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="€" />
+        <input aria-label={perPiece ? "New idea price per piece" : "New idea price"} className={`${INPUT} ${perPiece ? "max-w-36" : "max-w-28"}`}
+          inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={perPiece ? "Price per piece" : "€"} />
       </div>
       {(err || add.isError) && <p className="text-sm text-red-600">{err || "Could not add the idea."}</p>}
       <button type="submit" className={BTN} disabled={add.isPending}>Add idea</button>
@@ -265,7 +269,7 @@ function ItemForm({ item, people, rooms, me }: { item: ItemDetail; people: Perso
 
       {!owned && (
         <>
-          <EuroField label="Own price" cents={item.ownPriceCents} disabled={ro || hasFavorite}
+          <EuroField label={item.quantity > 1 ? "Own price (per piece)" : "Own price"} cents={item.ownPriceCents} disabled={ro || hasFavorite}
             note={hasFavorite ? "Using the starred idea's price" : undefined}
             onSave={(c) => save({ ownPriceCents: c })} />
           {item.status === "bought" && (
@@ -282,7 +286,7 @@ function ItemForm({ item, people, rooms, me }: { item: ItemDetail; people: Perso
           <ul className="space-y-2">
             {item.ideas.map((i) => <IdeaRow key={i.id} item={item} idea={i} editable={item.canEdit} />)}
           </ul>
-          {item.canEdit && <AddIdea itemId={item.id} />}
+          {item.canEdit && <AddIdea itemId={item.id} quantity={item.quantity} />}
         </section>
       )}
 

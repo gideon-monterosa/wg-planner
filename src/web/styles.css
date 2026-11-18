@@ -11,6 +11,9 @@
   --fg: #1c1b19;
   --muted: #6b6a66;
   --line: #e4e2dc;
+  /* Status pill fills: dark enough for white 12px text (WCAG AA, >= 4.5:1). */
+  --pill-decided: #1f66b8;
+  --pill-bought: #0f7a55;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,6 +28,8 @@
     --fg: #f0eee9;
     --muted: #a09e98;
     --line: #34322e;
+    --pill-decided: #1f66b8;
+    --pill-bought: #0f7a55;
   }
 }
 
@@ -42,6 +47,6 @@ body {
   border: 1px solid transparent;
 }
 .status-needed { background: var(--line); color: var(--fg); }
-.status-decided { background: var(--accent); color: #fff; }
-.status-bought { background: var(--green); color: #fff; }
+.status-decided { background: var(--pill-decided); color: #fff; }
+.status-bought { background: var(--pill-bought); color: #fff; }
 .status-owned { border: 1px dashed var(--muted); color: var(--muted); background: transparent; }

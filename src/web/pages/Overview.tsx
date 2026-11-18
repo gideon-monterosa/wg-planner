@@ -33,7 +33,7 @@ export default function Overview() {
       </div>
       <PersonBars mode={mode} />
       <p className="text-xs mt-4" style={{ color: "var(--muted)" }}>
-        “Planned” counts each item's favorite idea (or what was paid, once it's bought). Items with no favorite yet aren't counted.
+        Planned counts what was paid for bought items, otherwise the starred idea's price, otherwise the item's own price. Price ranges and owned items count as zero.
       </p>
     </div>
   );

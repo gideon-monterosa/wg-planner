@@ -15,6 +15,7 @@ export function formatPrice(p: PriceInfo): string {
     case "own":
       return `≈ ${formatEuro(p.cents)}`;
     case "range":
+      if (p.minCents === p.maxCents) return formatEuro(p.minCents);
       // euro sign once: "€150–260"
       return `${formatEuro(p.minCents)}–${formatEuro(p.maxCents).replace(/^€/, "")}`;
     case "none":
