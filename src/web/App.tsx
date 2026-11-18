@@ -11,11 +11,13 @@ const TABS = [
   { href: "/overview", label: "Overview" },
 ];
 
-function BottomNav() {
+function BottomNav({ inert }: { inert?: boolean }) {
   const [isOverview] = useRoute("/overview");
-  const active = isOverview ? "/overview" : "/";
+  const [isList] = useRoute("/");
+  const [isItem] = useRoute("/items/:id");
+  const active = isOverview ? "/overview" : isList || isItem ? "/" : null;
   return (
-    <nav className="fixed inset-x-0 bottom-0 flex border-t border-[var(--line)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
+    <nav inert={inert} className="fixed inset-x-0 bottom-0 flex border-t border-[var(--line)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
       {TABS.map((t) => (
         <Link
           key={t.href}
@@ -30,9 +32,9 @@ function BottomNav() {
   );
 }
 
-function Header() {
+function Header({ inert }: { inert?: boolean }) {
   return (
-    <header className="flex items-center justify-between px-4 pt-3">
+    <header inert={inert} className="flex items-center justify-between px-4 pt-3">
       <span className="font-semibold">WG Planner</span>
       <Link href="/settings" aria-label="Settings" className="-mr-2 rounded p-2 text-[var(--muted)]">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
@@ -61,7 +63,15 @@ function Shell() {
     }
   }, [location]);
 
+  // history.back() is async: guard so a double close can't leave the app.
+  const closing = useRef(false);
+  const itemId = isItem ? itemParams?.id : null;
+  useEffect(() => {
+    closing.current = false;
+  }, [itemId]);
   const closeItem = () => {
+    if (closing.current) return;
+    closing.current = true;
     if (prev.current === "/") window.history.back();
     else navigate("/", { replace: true });
   };
@@ -69,8 +79,8 @@ function Shell() {
   const known = isItem || isList || isOverview || isSettings;
   return (
     <div className="mx-auto max-w-xl pb-20">
-      {!isSettings && <Header />}
-      <main className="p-4">
+      {!isSettings && <Header inert={isItem} />}
+      <main className="p-4" inert={isItem}>
         {(isList || isItem) && <MovingList />}
         <Switch>
           <Route path="/overview" component={Overview} />
@@ -81,7 +91,7 @@ function Shell() {
         </Switch>
       </main>
       {isItem && <ItemModal id={Number(itemParams?.id)} onClose={closeItem} />}
-      <BottomNav />
+      <BottomNav inert={isItem} />
     </div>
   );
 }

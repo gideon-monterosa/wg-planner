@@ -188,7 +188,7 @@ function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
   );
 }
 
-function ItemForm({ item, people, rooms, me }: { item: ItemDetail; people: Person[]; rooms: Room[]; me: number | undefined }) {
+function ItemForm({ item, people, rooms, me, onDeleted }: { item: ItemDetail; people: Person[]; rooms: Room[]; me: number | undefined; onDeleted?: () => void }) {
   const [, navigate] = useLocation();
   const patch = usePatchItem();
   const del = useDeleteItem();
@@ -292,7 +292,7 @@ function ItemForm({ item, people, rooms, me }: { item: ItemDetail; people: Perso
 
       {item.canEdit && (
         <button type="button" className={`${BTN} text-red-600`} disabled={del.isPending}
-          onClick={() => window.confirm(`Delete "${item.name}"?`) && del.mutate(item.id, { onSuccess: () => navigate("/", { replace: true }) })}>
+          onClick={() => window.confirm(`Delete "${item.name}"?`) && del.mutate(item.id, { onSuccess: () => (onDeleted ? onDeleted() : navigate("/", { replace: true })) })}>
           Delete item
         </button>
       )}
@@ -300,7 +300,7 @@ function ItemForm({ item, people, rooms, me }: { item: ItemDetail; people: Perso
   );
 }
 
-export default function ItemPage() {
+export default function ItemPage({ onDeleted }: { onDeleted?: () => void } = {}) {
   const [, params] = useRoute("/items/:id");
   const id = Number(params?.id);
   const item = useItem(id);
@@ -313,5 +313,5 @@ export default function ItemPage() {
     return <p>{notFound ? "This item doesn't exist or isn't shared with you." : "Could not load this item."}</p>;
   }
   if (!item.data || !people.data || !rooms.data) return <p className="text-[var(--muted)]">Loading…</p>;
-  return <ItemForm item={item.data} people={people.data} rooms={rooms.data} me={me.data?.id} />;
+  return <ItemForm item={item.data} people={people.data} rooms={rooms.data} me={me.data?.id} onDeleted={onDeleted} />;
 }
