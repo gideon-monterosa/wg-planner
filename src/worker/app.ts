@@ -4,6 +4,7 @@ import type { AppEnv } from "./env";
 import { identity } from "./auth";
 import { errorCode, errorExtra } from "./http";
 import people from "./routes/people";
+import rooms from "./routes/rooms";
 
 const app = new Hono<AppEnv>().basePath("/api");
 
@@ -15,6 +16,7 @@ app.get("/health", async (c) => {
 });
 
 app.route("/", people);
+app.route("/", rooms);
 
 app.notFound((c) => c.json({ error: "not_found", message: "Not found" }, 404));
 
