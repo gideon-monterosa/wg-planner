@@ -64,6 +64,19 @@ describe("people API", () => {
     await seed();
     const res = await api("/api/people", { method: "POST", body: { name: "", email: "nope" } });
     expect(res.status).toBe(400);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body).toMatchObject({ error: "invalid_body" });
+    expect(typeof body.message).toBe("string");
+    const patch = await api("/api/people/1", { method: "PATCH", body: { email: "nope" } });
+    expect(patch.status).toBe(400);
+    expect(await patch.json()).toMatchObject({ error: "invalid_body" });
+  });
+
+  it("a non-numeric person id is 404, not 500", async () => {
+    await seed();
+    const res = await api("/api/people/abc", { method: "PATCH", body: { name: "x" } });
+    expect(res.status).toBe(404);
+    expect(await res.json()).toMatchObject({ error: "not_found", message: "Person not found" });
   });
 
   it("patches name and email, 404 for unknown id, 409 for taken email", async () => {

@@ -1,5 +1,7 @@
 import { beforeEach, describe, it, expect } from "vitest";
+import { env } from "cloudflare:test";
 import type { ItemDetail, Person } from "../../src/shared/types";
+import app from "../../src/worker/app";
 import { shopFromUrl } from "../../src/worker/routes/ideas";
 import { api, post, resetDb } from "./helpers";
 
@@ -137,6 +139,50 @@ describe("ideas", () => {
     const res = await api(`/api/ideas/${d.ideas[0]!.id}`, { method: "DELETE", as: LENA });
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({ error: "read_only" });
+  });
+
+  it("an idea on a hidden item gives exactly the same 404 as a missing idea", async () => {
+    const mine = await post<ItemDetail>("/api/items", { name: "Secret", forMe: true });
+    const d = await post<ItemDetail>(`/api/items/${mine.id}/ideas`, { title: "S" });
+    const hidden = await api(`/api/ideas/${d.ideas[0]!.id}`, { method: "PATCH", body: { title: "x" }, as: LENA });
+    const missing = await api("/api/ideas/99999", { method: "PATCH", body: { title: "x" }, as: LENA });
+    expect(hidden.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(await hidden.json()).toEqual(await missing.json());
+  });
+
+  it("an explicit shop wins on create and patch; otherwise it follows the url", async () => {
+    let d = await post<ItemDetail>(`/api/items/${itemId}/ideas`, { title: "C", url: "https://www.ikea.com/x", shop: " IKEA " });
+    expect(d.ideas[2]).toMatchObject({ shop: "IKEA" });
+    const patch = async (body: unknown) => {
+      const res = await api(`/api/ideas/${ideaA}`, { method: "PATCH", body });
+      expect(res.status).toBe(200);
+      return ((await res.json()) as ItemDetail).ideas[0]!;
+    };
+    expect(await patch({ shop: "Shop A Berlin" })).toMatchObject({ shop: "Shop A Berlin" });
+    expect(await patch({ title: "A2" })).toMatchObject({ shop: "Shop A Berlin" });
+    expect(await patch({ url: "https://www.other.com/y", shop: "Other" })).toMatchObject({ shop: "Other" });
+    expect(await patch({ url: "https://www.third.com/z" })).toMatchObject({ shop: "third.com" });
+    d = (await (await api(`/api/items/${itemId}`)).json()) as ItemDetail;
+    expect(d.ideas[0]!.shop).toBe("third.com");
+    const long = await api(`/api/ideas/${ideaA}`, { method: "PATCH", body: { shop: "x".repeat(101) } });
+    expect(long.status).toBe(400);
+  });
+
+  it("rejects a body that is not sent as application/json", async () => {
+    const res = await app.request(
+      `/api/items/${itemId}/ideas`,
+      { method: "POST", body: JSON.stringify({ title: "X" }), headers: { "content-type": "text/plain" } },
+      { ...env, DEV_USER_EMAIL: "gideon@example.com" },
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toMatchObject({ error: "invalid_body" });
+    const ok = await app.request(
+      `/api/items/${itemId}/ideas`,
+      { method: "POST", body: JSON.stringify({ title: "X" }), headers: { "content-type": "application/json; charset=utf-8" } },
+      { ...env, DEV_USER_EMAIL: "gideon@example.com" },
+    );
+    expect(ok.status).toBe(201);
   });
 
   it("bad ids are 404", async () => {

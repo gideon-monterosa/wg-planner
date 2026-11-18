@@ -1,9 +1,9 @@
 import { Hono } from "hono";
-import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import type { Room } from "../../shared/types";
 import type { AppEnv } from "../env";
 import { fail } from "../http";
+import { parseBody } from "../route-utils";
 
 const name = z.string().trim().min(1).max(60);
 const personId = z.number().int().positive().nullable();
@@ -30,8 +30,12 @@ function parseId(raw: string): number {
 
 rooms.get("/rooms", async (c) => c.json(await listRooms(c.env.DB)));
 
-rooms.post("/rooms", zValidator("json", z.object({ name, personId })), async (c) => {
-  const body = c.req.valid("json");
+const createBody = z.object({ name, personId });
+const orderBody = z.object({ ids: z.array(z.number().int()) });
+const patchBody = z.object({ name: name.optional(), personId: personId.optional() });
+
+rooms.post("/rooms", async (c) => {
+  const body = await parseBody(c, createBody);
   await requirePerson(c.env.DB, body.personId);
   const room = await c.env.DB.prepare(
     `INSERT INTO rooms (name, person_id, sort)
@@ -45,9 +49,8 @@ rooms.post("/rooms", zValidator("json", z.object({ name, personId })), async (c)
 
 rooms.put(
   "/rooms/order",
-  zValidator("json", z.object({ ids: z.array(z.number().int()) })),
   async (c) => {
-    const { ids } = c.req.valid("json");
+    const { ids } = await parseBody(c, orderBody);
     const current = await listRooms(c.env.DB);
     const exact =
       ids.length === current.length &&
@@ -63,10 +66,9 @@ rooms.put(
 
 rooms.patch(
   "/rooms/:id",
-  zValidator("json", z.object({ name: name.optional(), personId: personId.optional() })),
   async (c) => {
     const id = parseId(c.req.param("id"));
-    const body = c.req.valid("json");
+    const body = await parseBody(c, patchBody);
     await requirePerson(c.env.DB, body.personId);
     const existing = await c.env.DB.prepare(`${ROOM_SELECT} WHERE id = ?`).bind(id).first<Room>();
     if (!existing) fail(404, "not_found", "Room not found");
