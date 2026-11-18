@@ -1,3 +1,5 @@
+import type { Person } from "../shared/types";
+
 export interface Env {
   DB: D1Database;
   ACCESS_TEAM_DOMAIN?: string;
@@ -7,5 +9,5 @@ export interface Env {
 
 export interface AppEnv {
   Bindings: Env;
-  Variables: {};
+  Variables: { me: Person };
 }
