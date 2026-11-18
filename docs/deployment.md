@@ -23,9 +23,9 @@ Where each piece is defined:
   config from it. An unknown mode fails the build.
 - **`mise.toml`** tasks read IDs through `scripts/env.mjs <mode> <key>`, which
   fails when the value is empty.
-- **GitHub**: environments `integration` and `production`, each with the secrets
-  `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. Add required reviewers to
-  `production` if you want a manual approval step.
+- **GitHub**: repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+  The workflow uses no GitHub deployment environments: on GitHub Free they are not
+  available for private repositories, and a job referencing one fails to start.
 - **Cloudflare**: the two D1 databases, the two Workers (created by the first
   deploy), and an Access application per hostname, whose team domain and AUD go
   into `environments.json`.
