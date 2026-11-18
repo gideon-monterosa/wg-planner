@@ -1,5 +1,23 @@
 {
-  "development": { "worker": "wg-planner-dev", "d1Name": "wg-planner-dev", "d1Id": "3f2a9c1e-7b4d-4e8a-9c6b-1d2e3f4a5b6c", "accessTeamDomain": null, "accessAud": null },
-  "integration": { "worker": "wg-planner-int", "d1Name": "wg-planner-int", "d1Id": "", "accessTeamDomain": "", "accessAud": "" },
-  "production":  { "worker": "wg-planner",     "d1Name": "wg-planner",     "d1Id": "", "accessTeamDomain": "", "accessAud": "" }
+  "development": {
+    "worker": "wg-planner-dev",
+    "d1Name": "wg-planner-dev",
+    "d1Id": "3f2a9c1e-7b4d-4e8a-9c6b-1d2e3f4a5b6c",
+    "accessTeamDomain": null,
+    "accessAud": null
+  },
+  "integration": {
+    "worker": "wg-planner-int",
+    "d1Name": "wg-planner-int",
+    "d1Id": "d4d475e2-33f3-47bf-a7f8-83a5b6bf8af5",
+    "accessTeamDomain": "",
+    "accessAud": ""
+  },
+  "production": {
+    "worker": "wg-planner",
+    "d1Name": "wg-planner",
+    "d1Id": "e03feaf4-76bc-48ad-932b-ad77cfe18a1d",
+    "accessTeamDomain": "",
+    "accessAud": ""
+  }
 }
