@@ -57,17 +57,25 @@ export interface IdeaInput {
 }
 
 // ---- queries ----
+/** Retry network and 5xx errors, but not 4xx answers like 403 not_set_up or 404 not_found. */
+const retryUnless4xx = (count: number, err: Error) => !(err instanceof ApiError && err.status < 500) && count < 2;
+
 export const useMe = () =>
   useQuery({
     queryKey: ["me"],
     queryFn: () => request<Me>("GET", "/api/me"),
-    retry: (count, err) => !(err instanceof ApiError && err.status < 500) && count < 2,
+    retry: retryUnless4xx,
   });
 export const usePeople = () => useQuery({ queryKey: ["people"], queryFn: () => request<Person[]>("GET", "/api/people") });
 export const useRooms = () => useQuery({ queryKey: ["rooms"], queryFn: () => request<Room[]>("GET", "/api/rooms") });
 export const useItems = () => useQuery({ queryKey: ["items"], queryFn: () => request<ItemSummary[]>("GET", "/api/items") });
 export const useItem = (id: number) =>
-  useQuery({ queryKey: ["item", id], queryFn: () => request<ItemDetail>("GET", `/api/items/${id}`), enabled: Number.isFinite(id) });
+  useQuery({
+    queryKey: ["item", id],
+    queryFn: () => request<ItemDetail>("GET", `/api/items/${id}`),
+    enabled: Number.isFinite(id),
+    retry: retryUnless4xx,
+  });
 export const useOverview = () => useQuery({ queryKey: ["overview"], queryFn: () => request<Overview>("GET", "/api/overview") });
 
 // ---- invalidation helpers ----
@@ -148,7 +156,7 @@ export function useRoomMutations() {
   };
   return {
     create: useMutation({
-      mutationFn: (input: { name: string; personId?: number | null }) => request<Room>("POST", "/api/rooms", input),
+      mutationFn: (input: { name: string; personId: number | null }) => request<Room>("POST", "/api/rooms", input),
       onSuccess: done,
     }),
     patch: useMutation({

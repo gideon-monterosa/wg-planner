@@ -101,7 +101,7 @@ export default function Rooms() {
     e.preventDefault();
     const name = newName.trim();
     if (!name) return;
-    create.mutate({ name }, { onSuccess: () => setNewName("") });
+    create.mutate({ name, personId: null }, { onSuccess: () => setNewName("") });
   };
 
   if (rooms.isLoading) return <p>Loading…</p>;
