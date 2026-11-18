@@ -2,6 +2,9 @@
 node = "24"
 "npm:cf" = "1.0.0-rc.1"
 
+# Worker names and D1 IDs live in environments.json; tasks read them through
+# scripts/env.mjs, which fails when a value is still empty.
+
 [tasks.dev]
 description = "Run the app locally (Vite + Worker + local D1)"
 run = "cf dev"
@@ -12,14 +15,29 @@ run = ["npx vitest run --config vitest.config.ts", "npx vitest run --config vite
 [tasks.typecheck]
 run = ["cf workers types --mode development", "npx tsc -b"]
 
-[tasks.deploy]
-depends = ["test"]
-run = "cf deploy"
-
 [tasks."db:migrate"]
-description = "Apply D1 migrations to the local database that `cf dev` serves (ID matches development.d1Id in environments.json)"
-run = "cf d1 migrations apply 3f2a9c1e-7b4d-4e8a-9c6b-1d2e3f4a5b6c --local --mode development"
+description = "Apply D1 migrations to the local database that `cf dev` serves"
+run = 'id="$(node scripts/env.mjs development d1Id)" && cf d1 migrations apply "$id" --local --mode development'
 
-[tasks."db:migrate:remote"]
-description = "Apply D1 migrations to the production database (set D1_DATABASE_ID)"
-run = 'cf d1 migrations apply "${D1_DATABASE_ID:?set D1_DATABASE_ID to the wg-planner database ID}" --remote'
+# cf 1.0 applies migrations remotely unless --local is given (there is no --remote flag).
+[tasks."db:migrate:int"]
+description = "Apply D1 migrations to the remote integration database"
+run = 'id="$(node scripts/env.mjs integration d1Id)" && cf d1 migrations apply "$id" --mode integration'
+
+[tasks."db:migrate:prod"]
+description = "Apply D1 migrations to the remote production database"
+run = 'id="$(node scripts/env.mjs production d1Id)" && cf d1 migrations apply "$id" --mode production'
+
+[tasks."deploy:int"]
+description = "Deploy to integration (CI does this on every push to main)"
+depends = ["test"]
+run = "cf deploy --mode integration"
+
+[tasks."deploy:prod"]
+description = "Deploy to production (prefer `mise run release`, which lets CI deploy a tag)"
+depends = ["test"]
+run = "cf deploy --mode production"
+
+[tasks.release]
+description = "Tag main as vX.Y.Z and push the tag; CI deploys it to production. Usage: mise run release -- X.Y.Z"
+run = "bash scripts/release.sh"
