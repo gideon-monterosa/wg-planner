@@ -11,16 +11,16 @@
     "worker": "wg-planner-int",
     "d1Name": "wg-planner-int",
     "d1Id": "d4d475e2-33f3-47bf-a7f8-83a5b6bf8af5",
-    "accessTeamDomain": "",
-    "accessAud": "",
+    "accessTeamDomain": "https://frosty-water-68b9.cloudflareaccess.com",
+    "accessAud": "220cbe0534601ca1be64e7429296de4d9d0783f4a2155fc4cb6520c7acbe3760",
     "domain": "wg-int.monterosa.dev"
   },
   "production": {
     "worker": "wg-planner",
     "d1Name": "wg-planner",
     "d1Id": "e03feaf4-76bc-48ad-932b-ad77cfe18a1d",
-    "accessTeamDomain": "",
-    "accessAud": "",
+    "accessTeamDomain": "https://frosty-water-68b9.cloudflareaccess.com",
+    "accessAud": "56b76399f6cff5a73246f1b793a52da06ee736363eba5259107176535d74a5fa",
     "domain": "wg.monterosa.dev"
   }
 }
