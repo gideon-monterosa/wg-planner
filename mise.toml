@@ -1,0 +1,17 @@
+[tools]
+node = "24"
+"npm:cf" = "0.15.0"
+
+[tasks.dev]
+description = "Run the app locally (Vite + Worker + local D1)"
+run = "cf dev"
+
+[tasks.test]
+run = ["npx vitest run --config vitest.config.ts", "npx vitest run --config vitest.worker.config.ts"]
+
+[tasks.typecheck]
+run = ["cf workers types", "npx tsc -b"]
+
+[tasks.deploy]
+depends = ["test"]
+run = "cf deploy"
