@@ -38,6 +38,7 @@ export interface ItemInput {
   name?: string;
   roomId?: number | null;
   forPersonId?: number | null;
+  forMe?: boolean;
   visibleToAll?: boolean;
   status?: Status;
   payer?: Payer;
