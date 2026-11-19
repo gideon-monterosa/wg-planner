@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
-import type { ItemDetail, ItemSummary, Overview, Payer, Person, Room, Status } from "../shared/types.ts";
+import type { IdeaWithItem, ItemDetail, ItemSummary, Overview, Payer, Person, Room, Status } from "../shared/types.ts";
 
 export class ApiError extends Error {
   status: number;
@@ -77,6 +77,7 @@ export const useItem = (id: number) =>
     enabled: Number.isFinite(id),
     retry: retryUnless4xx,
   });
+export const useIdeas = () => useQuery({ queryKey: ["ideas"], queryFn: () => request<IdeaWithItem[]>("GET", "/api/ideas") });
 export const useOverview = () => useQuery({ queryKey: ["overview"], queryFn: () => request<Overview>("GET", "/api/overview") });
 
 // ---- invalidation helpers ----
@@ -116,27 +117,79 @@ export function useDeleteItem() {
   });
 }
 
-// ---- idea mutations (all return the parent ItemDetail) ----
+// ---- idea mutations ----
+/** `PATCH /api/ideas/:id` answers with the item when the idea ends up linked, otherwise with the idea itself. */
+export type IdeaResult = ItemDetail | IdeaWithItem;
+export const isItemDetail = (r: IdeaResult | undefined | void): r is ItemDetail => !!r && "ideas" in r;
+
+/** The item an idea is linked to right now, from the ideas list in the cache (undefined when unknown). */
+const cachedIdeaItem = (qc: QueryClient, ideaId: number): number | null | undefined =>
+  qc.getQueryData<IdeaWithItem[]>(["ideas"])?.find((i) => i.id === ideaId)?.itemId;
+
+/**
+ * After any idea change: refresh the ideas list, the item list, the overview and every affected item
+ * (source and target of a move). The response body alone never covers all of them.
+ */
+function afterIdeaChange(qc: QueryClient, itemIds: (number | null | undefined)[], result?: IdeaResult | void) {
+  if (isItemDetail(result)) qc.setQueryData(["item", result.id], result);
+  qc.invalidateQueries({ queryKey: ["ideas"] });
+  qc.invalidateQueries({ queryKey: ["items"] });
+  qc.invalidateQueries({ queryKey: ["overview"] });
+  const ids = new Set(itemIds.filter((id): id is number => typeof id === "number"));
+  if (isItemDetail(result)) ids.add(result.id);
+  for (const id of ids) qc.invalidateQueries({ queryKey: ["item", id] });
+}
+
+/** Adds an idea from the item modal (always linked to that item). */
 export function useAddIdea() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ itemId, ...idea }: IdeaInput & { itemId: number; title: string }) =>
       request<ItemDetail>("POST", `/api/items/${itemId}/ideas`, idea),
-    onSuccess: (d) => afterDetail(qc, d),
+    onSuccess: (d, v) => afterIdeaChange(qc, [v.itemId], d),
   });
 }
+/** Quick capture: `POST /api/ideas`, linked when `itemId` is given, otherwise unlinked. */
+export function useCreateIdea() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: IdeaInput & { itemId?: number | null }) => request<IdeaWithItem>("POST", "/api/ideas", input),
+    onSuccess: (idea) => afterIdeaChange(qc, [idea.itemId]),
+  });
+}
+export interface PatchIdeaVars extends IdeaInput {
+  id: number;
+  /** null unlinks; a number links or moves. */
+  itemId?: number | null;
+  /** The item the idea is on now (not sent), so it is refreshed too; without it the ideas cache is asked. */
+  fromItemId?: number | null;
+}
+/** Edits an idea; `itemId` links, moves or unlinks it. */
 export function usePatchIdea() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...patch }: IdeaInput & { id: number }) => request<ItemDetail>("PATCH", `/api/ideas/${id}`, patch),
-    onSuccess: (d) => afterDetail(qc, d),
+    mutationFn: ({ id, fromItemId: _from, ...patch }: PatchIdeaVars) => request<IdeaResult>("PATCH", `/api/ideas/${id}`, patch),
+    onMutate: (v) => ({ source: v.fromItemId !== undefined ? v.fromItemId : cachedIdeaItem(qc, v.id) }),
+    onSuccess: (res, v, ctx) => afterIdeaChange(qc, [ctx?.source, v.itemId], res),
   });
 }
+/** Deletes an idea: answers with its item when it was linked, nothing (204) when it wasn't. */
 export function useDeleteIdea() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: number) => request<ItemDetail>("DELETE", `/api/ideas/${id}`),
-    onSuccess: (d) => afterDetail(qc, d),
+    mutationFn: (id: number) => request<ItemDetail | undefined>("DELETE", `/api/ideas/${id}`),
+    onMutate: (id) => ({ source: cachedIdeaItem(qc, id) }),
+    onSuccess: (res, _id, ctx) => afterIdeaChange(qc, [ctx?.source], res),
+  });
+}
+/** "Make item": creates an item named after the idea and links the idea to it. */
+export function useIdeaToItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, roomId }: { id: number; roomId: number | null }) =>
+      request<ItemDetail>("POST", `/api/ideas/${id}/to-item`, { roomId }),
+    onMutate: (v) => ({ source: cachedIdeaItem(qc, v.id) }),
+    onSuccess: (d, _v, ctx) => afterIdeaChange(qc, [ctx?.source], d),
   });
 }
 export function useSetFavorite() {
@@ -144,7 +197,7 @@ export function useSetFavorite() {
   return useMutation({
     mutationFn: ({ itemId, ideaId }: { itemId: number; ideaId: number | null }) =>
       request<ItemDetail>("PUT", `/api/items/${itemId}/favorite`, { ideaId }),
-    onSuccess: (d) => afterDetail(qc, d),
+    onSuccess: (d, v) => afterIdeaChange(qc, [v.itemId], d),
   });
 }
 
