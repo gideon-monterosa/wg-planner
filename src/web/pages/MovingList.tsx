@@ -124,10 +124,14 @@ export default function MovingList() {
                         </span>
                       )}
                     </span>
-                    <span className="block text-xs text-[var(--muted)]">{subline(item, meId, people.data ?? [])}</span>
+                    {/* Below 640px the pill sits in the subline row, leaving the name more width. */}
+                    <span className="flex items-center gap-2">
+                      <span className="shrink-0 sm:hidden"><StatusPill status={item.status} /></span>
+                      <span className="min-w-0 text-xs text-[var(--muted)]">{subline(item, meId, people.data ?? [])}</span>
+                    </span>
                   </span>
-                  <span className="shrink-0"><StatusPill status={item.status} /></span>
-                  <span className="w-24 shrink-0 whitespace-nowrap text-right text-sm">
+                  <span className="hidden shrink-0 sm:block"><StatusPill status={item.status} /></span>
+                  <span className="min-w-24 shrink-0 whitespace-nowrap text-right text-sm" data-testid="price">
                     <PriceLabel price={item.price} />
                   </span>
                 </button>

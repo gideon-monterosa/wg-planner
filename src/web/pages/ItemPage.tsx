@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useRoute } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import {
   ApiError, useAddIdea, useDeleteIdea, useDeleteItem, useItem, useMe, usePatchIdea, usePatchItem,
   usePeople, useRooms, useSetFavorite,
@@ -335,15 +335,22 @@ function PerPiece({ price, quantity }: { price: PriceInfo; quantity: number }) {
   );
 }
 
-function BackToList() {
+/** Leaves the item through the modal's close path (history.back or replace), never by pushing "/". */
+function BackToList({ onClose }: { onClose?: () => void }) {
+  const [, navigate] = useLocation();
   return (
-    <Link href="/" className="inline-flex min-h-11 items-center text-[var(--accent)] underline">
+    <button
+      type="button"
+      onClick={onClose ?? (() => navigate("/", { replace: true }))}
+      className="inline-flex min-h-11 items-center text-[var(--accent)] underline"
+    >
       Back to the list
-    </Link>
+    </button>
   );
 }
 
-export default function ItemPage({ onDeleted }: { onDeleted?: () => void } = {}) {
+/** `onClose` closes the surrounding modal; it is used after a delete and by "Back to the list". */
+export default function ItemPage({ onClose }: { onClose?: () => void } = {}) {
   const [, params] = useRoute("/items/:id");
   const id = Number(params?.id);
   const item = useItem(id);
@@ -351,15 +358,17 @@ export default function ItemPage({ onDeleted }: { onDeleted?: () => void } = {})
   const rooms = useRooms();
   const me = useMe();
 
-  const notFound = !Number.isFinite(id) || (item.error instanceof ApiError && item.error.status === 404);
-  if (notFound || item.isError || people.isError || rooms.isError) {
+  // Only errors without data count: a failed background refetch must not wipe an open form.
+  const itemFailed = !item.data && item.isError;
+  const notFound = !Number.isFinite(id) || (itemFailed && item.error instanceof ApiError && item.error.status === 404);
+  if (notFound || itemFailed || (!people.data && people.isError) || (!rooms.data && rooms.isError)) {
     return (
       <div role="alert" className="space-y-1">
         <p>{notFound ? "This item doesn't exist or isn't shared with you." : "Could not load this item."}</p>
-        <BackToList />
+        <BackToList onClose={onClose} />
       </div>
     );
   }
   if (!item.data || !people.data || !rooms.data) return <p className="text-[var(--muted)]">Loading…</p>;
-  return <ItemForm item={item.data} people={people.data} rooms={rooms.data} me={me.data?.id} onDeleted={onDeleted} />;
+  return <ItemForm item={item.data} people={people.data} rooms={rooms.data} me={me.data?.id} onDeleted={onClose} />;
 }

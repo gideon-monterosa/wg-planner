@@ -6,7 +6,7 @@ const FIELD = "min-h-10 rounded-lg border border-[var(--field-border)] bg-transp
 const SMALL_BTN = "inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-[var(--field-border)] px-2 hover:bg-[var(--line)]/40 disabled:opacity-40";
 
 function RoomRow({
-  room, people, index, count, onMove, onDragStart, onDrop, dropTarget, onDragOver,
+  room, people, index, count, onMove, onDragStart, onDrop, dropTarget, onDragOver, onDragEnd,
 }: {
   room: Room;
   people: Person[];
@@ -17,6 +17,7 @@ function RoomRow({
   onDrop: (index: number) => void;
   dropTarget: boolean;
   onDragOver: (index: number) => void;
+  onDragEnd: () => void;
 }) {
   const { patch, remove } = useRoomMutations();
   const [name, setName] = useState(room.name);
@@ -47,6 +48,7 @@ function RoomRow({
         onDragOver(index);
       }}
       onDrop={() => onDrop(index)}
+      onDragEnd={onDragEnd}
     >
       <span aria-hidden="true" title="Drag to reorder" className="hidden cursor-grab px-0.5 text-[var(--muted)] select-none md:inline">
         ⋮⋮
@@ -148,6 +150,11 @@ export default function Rooms() {
             onDragStart={setDragFrom}
             dropTarget={dragFrom !== null && dragOver === i && dragFrom !== i}
             onDragOver={setDragOver}
+            onDragEnd={() => {
+              // Fires after a drop and also when a drag is cancelled (Escape, dropped outside the list).
+              setDragFrom(null);
+              setDragOver(null);
+            }}
             onDrop={(to) => {
               if (dragFrom !== null) move(dragFrom, to);
               setDragFrom(null);

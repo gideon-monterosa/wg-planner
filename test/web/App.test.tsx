@@ -209,8 +209,52 @@ it("shows not found for a non-numeric item id instead of loading forever", async
   renderApp("/items/abc");
   const dialog = await screen.findByRole("dialog");
   expect(await within(dialog).findByText("This item doesn't exist or isn't shared with you.")).toBeInTheDocument();
-  expect(within(dialog).getByRole("link", { name: "Back to the list" })).toHaveAttribute("href", "/");
   expect(within(dialog).queryByText("Loading…")).toBeNull();
+});
+
+it("'Back to the list' on a deep-linked missing item closes the dialog with replace", async () => {
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  const loc = renderApp("/items/abc");
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(await within(dialog).findByRole("button", { name: "Back to the list" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(back).not.toHaveBeenCalled();
+  expect(loc.history).toEqual(["/"]);
+});
+
+it("'Back to the list' after opening a missing item from the list goes back, not forward", async () => {
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  const loc = renderApp("/");
+  await screen.findByRole("button", { name: /Chair/ });
+  act(() => loc.navigate("/items/abc"));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(await within(dialog).findByRole("button", { name: "Back to the list" }));
+  expect(back).toHaveBeenCalledTimes(1);
+  expect(loc.history).toEqual(["/", "/items/abc"]);
+});
+
+it("shows the list error with a working Try again button", async () => {
+  let fail = true;
+  vi.stubGlobal("fetch", vi.fn(async (p: string) => {
+    if (p === "/api/items" && fail) return new Response(JSON.stringify({ error: "internal" }), { status: 500 });
+    const body =
+      p === "/api/me" ? { id: 1, name: "Gideon", email: "g@x" }
+      : p === "/api/people" ? PEOPLE
+      : p === "/api/rooms" ? ROOMS
+      : p === "/api/items" ? [SUMMARY]
+      : [];
+    return new Response(JSON.stringify(body), { status: 200 });
+  }));
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={qc}>
+      <Router hook={memoryLocation({ path: "/" }).hook}><App /></Router>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load the list.");
+  fail = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("button", { name: /Chair/ })).toBeInTheDocument();
 });
 
 it("shows the first-run hint with one person", async () => {

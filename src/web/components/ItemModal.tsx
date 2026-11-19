@@ -40,7 +40,7 @@ export default function ItemModal({ id, onClose }: { id: number; onClose: () => 
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         style={drag ? { transform: `translateY(${Math.max(0, drag.dy)}px)` } : undefined}
-        className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-[var(--line)] bg-[var(--surface)] text-[var(--fg)] shadow-xl outline-none md:mx-6 md:max-w-2xl md:rounded-2xl md:border-b ${drag ? "" : "transition-transform"}`}
+        className={`relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-2xl border border-b-0 border-[var(--field-border)] bg-[var(--surface)] text-[var(--fg)] shadow-xl outline-none md:mx-6 md:max-w-2xl md:rounded-2xl md:border-b ${drag ? "" : "transition-transform"}`}
       >
         {/* Non-scrolling header: the drag handle (phones) and the close button never cover content. */}
         <div className="relative flex h-12 shrink-0 items-center justify-end px-1">
@@ -71,7 +71,7 @@ export default function ItemModal({ id, onClose }: { id: number; onClose: () => 
           </button>
         </div>
         <div className="overflow-y-auto overscroll-contain px-4 pb-4 md:px-6 md:pb-6">
-          <ItemPage onDeleted={onClose} />
+          <ItemPage onClose={onClose} />
         </div>
       </div>
     </div>

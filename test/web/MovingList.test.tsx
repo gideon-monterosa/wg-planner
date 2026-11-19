@@ -58,3 +58,24 @@ it("shows an empty state when a filter matches nothing", async () => {
   fireEvent.click(await screen.findByRole("button", { name: "Just mine" }));
   expect(screen.getByText("Nothing matches this filter.")).toBeInTheDocument();
 });
+
+it("lets wide prices and ranges size their own cell instead of spilling out", async () => {
+  renderList([
+    { ...ITEMS[1]!, price: { kind: "range", minCents: 115000, maxCents: 226000 } },
+    { ...ITEMS[1]!, id: 3, name: "Sofa", price: { kind: "own", cents: 1234000 } },
+  ]);
+  const range = await screen.findByText("CHF 1'150–2'260.–");
+  const cell = range.closest('[data-testid="price"]')!;
+  expect(cell).toHaveClass("min-w-24", "shrink-0", "whitespace-nowrap", "text-right");
+  expect(cell).not.toHaveClass("w-24");
+  expect(screen.getByText("≈ CHF 12'340.–").closest('[data-testid="price"]')).toHaveClass("min-w-24");
+});
+
+it("shows the status pill in the subline row on phones and as its own column from sm", async () => {
+  renderList([ITEMS[1]!]);
+  const pills = await screen.findAllByText("Needed");
+  expect(pills).toHaveLength(2);
+  expect(pills[0]!.parentElement).toHaveClass("sm:hidden");
+  expect(pills[0]!.parentElement!.parentElement).toHaveTextContent("No payer yet");
+  expect(pills[1]!.parentElement).toHaveClass("hidden", "sm:block");
+});
