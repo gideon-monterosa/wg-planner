@@ -1,56 +1,19 @@
 import { useEffect, useRef } from "react";
-import { Link, Redirect, Route, Switch, useLocation, useRoute } from "wouter";
+import { Redirect, Route, Switch, useLocation, useRoute } from "wouter";
 import { ApiError, useMe } from "./api.ts";
+import { BottomNav, TopBar } from "./components/AppNav.tsx";
 import ItemModal from "./components/ItemModal.tsx";
+import Ideas from "./pages/Ideas.tsx";
 import MovingList from "./pages/MovingList.tsx";
+import NotFound from "./pages/NotFound.tsx";
 import Overview from "./pages/Overview.tsx";
 import Settings from "./pages/Settings.tsx";
-
-const TABS = [
-  { href: "/", label: "List" },
-  { href: "/overview", label: "Overview" },
-];
-
-function BottomNav({ inert }: { inert?: boolean }) {
-  const [isOverview] = useRoute("/overview");
-  const [isList] = useRoute("/");
-  const [isItem] = useRoute("/items/:id");
-  const active = isOverview ? "/overview" : isList || isItem ? "/" : null;
-  return (
-    <nav inert={inert} className="fixed inset-x-0 bottom-0 flex border-t border-[var(--line)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
-      {TABS.map((t) => (
-        <Link
-          key={t.href}
-          href={t.href}
-          aria-current={active === t.href ? "page" : undefined}
-          className={`flex-1 py-3 text-center text-sm ${active === t.href ? "font-semibold text-[var(--accent)]" : "text-[var(--muted)]"}`}
-        >
-          {t.label}
-        </Link>
-      ))}
-    </nav>
-  );
-}
-
-function Header({ inert }: { inert?: boolean }) {
-  return (
-    <header inert={inert} className="flex items-center justify-between px-4 pt-3">
-      <span className="font-semibold">WG Planner</span>
-      <Link href="/settings" aria-label="Settings" className="-mr-2 rounded p-2 text-[var(--muted)]">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
-          strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-        </svg>
-      </Link>
-    </header>
-  );
-}
 
 function Shell() {
   const [location, navigate] = useLocation();
   const [isItem, itemParams] = useRoute("/items/:id");
   const [isList] = useRoute("/");
+  const [isIdeas] = useRoute("/ideas");
   const [isOverview] = useRoute("/overview");
   const [isSettings] = useRoute("/settings");
   // Track whether the entry before the current one is the list inside this app (not a deep link).
@@ -76,18 +39,19 @@ function Shell() {
     else navigate("/", { replace: true });
   };
 
-  const known = isItem || isList || isOverview || isSettings;
+  const known = isItem || isList || isIdeas || isOverview || isSettings;
   return (
-    <div className="mx-auto max-w-xl pb-20">
-      {!isSettings && <Header inert={isItem} />}
-      <main className="p-4" inert={isItem}>
+    <div className="min-h-dvh">
+      <TopBar inert={isItem} />
+      <main className="mx-auto max-w-xl px-4 pt-2 pb-24 md:max-w-5xl md:px-6 md:pt-6 md:pb-8" inert={isItem}>
         {(isList || isItem) && <MovingList />}
         <Switch>
+          <Route path="/ideas" component={Ideas} />
           <Route path="/overview" component={Overview} />
           <Route path="/settings" component={Settings} />
           <Route path="/rooms"><Redirect to="/settings" replace /></Route>
           <Route path="/people"><Redirect to="/settings" replace /></Route>
-          {!known && <Route><p>Not found.</p></Route>}
+          {!known && <Route component={NotFound} />}
         </Switch>
       </main>
       {isItem && <ItemModal id={Number(itemParams?.id)} onClose={closeItem} />}
@@ -96,19 +60,36 @@ function Shell() {
   );
 }
 
+function Centered({ children }: { children: React.ReactNode }) {
+  return <main className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">{children}</main>;
+}
+
 export default function App() {
   const me = useMe();
-  if (me.isPending) return <main className="p-4 text-[var(--muted)]">Loading…</main>;
+  if (me.isPending) return <Centered><p className="text-[var(--muted)]">Loading…</p></Centered>;
   if (me.error instanceof ApiError && me.error.status === 403) {
     const email = me.error.email ?? "this account";
     return (
-      <main className="flex min-h-screen items-center justify-center p-6 text-center">
+      <Centered>
         <p className="max-w-sm">
           You're signed in as {email}, but you haven't been added yet. Ask a flatmate to add you under People.
         </p>
-      </main>
+      </Centered>
     );
   }
-  if (me.error) return <main className="p-4">Something went wrong. Please reload.</main>;
+  if (me.error) {
+    return (
+      <Centered>
+        <p role="alert" className="text-[var(--muted)]">Something went wrong while loading WG Planner.</p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="min-h-11 rounded-lg bg-[var(--accent-fill)] px-4 font-medium text-white"
+        >
+          Reload
+        </button>
+      </Centered>
+    );
+  }
   return <Shell />;
 }
