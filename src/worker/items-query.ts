@@ -5,6 +5,16 @@ import { fail } from "./http";
 /** SQL condition (alias `i`) selecting only items the viewer may see. Binds one parameter: the viewer's id. */
 export const VISIBLE = "(i.for_person_id IS NULL OR i.for_person_id = ? OR i.visible_to_all = 1)";
 
+/** Ideas with their (optional) item: aliases `d` for the idea and `i` for the item. Use with VISIBLE_IDEA. */
+export const IDEAS_FROM = "ideas d LEFT JOIN items i ON i.id = d.item_id";
+
+/**
+ * SQL condition (for IDEAS_FROM) selecting only ideas the viewer may see: their own unlinked ideas, or ideas
+ * linked to an item matching VISIBLE. Binds two parameters: the viewer's id, twice.
+ * The `i.id IS NOT NULL` guard matters: on an unlinked row every `i.*` is NULL, which VISIBLE alone would accept.
+ */
+export const VISIBLE_IDEA = `((d.item_id IS NULL AND d.created_by = ?) OR (i.id IS NOT NULL AND ${VISIBLE}))`;
+
 export interface ItemRow {
   id: number;
   name: string;
@@ -118,6 +128,32 @@ export function assertCanEdit(row: Pick<ItemRow, "for_person_id">, meId: number)
   if (row.for_person_id !== null && row.for_person_id !== meId) {
     fail(403, "read_only", "Only its owner can change this item");
   }
+}
+
+/** The room's owner; an unknown room is a 400. */
+export async function roomOwner(db: D1Database, id: number): Promise<{ person_id: number | null }> {
+  const room = await db.prepare("SELECT person_id FROM rooms WHERE id = ?").bind(id).first<{ person_id: number | null }>();
+  if (!room) fail(400, "invalid_room", "That room does not exist");
+  return room;
+}
+
+/**
+ * A new item with the quick-add defaults: "just me" (hidden, paid by me) when `forMe`, otherwise shared with
+ * no payer; `forMe` defaults to "the room is mine". The statement returns `{ id }`. Checks the room first (400).
+ */
+export async function insertItemStatement(
+  db: D1Database,
+  input: { name: string; roomId?: number | null; forMe?: boolean; ownPriceCents?: number | null },
+  meId: number,
+): Promise<D1PreparedStatement> {
+  const room = input.roomId == null ? null : await roomOwner(db, input.roomId);
+  const forMe = input.forMe ?? (room !== null && room.person_id === meId);
+  return db
+    .prepare(
+      `INSERT INTO items (name, room_id, for_person_id, visible_to_all, payer_person_id, own_price_cents, created_by)
+       VALUES (?, ?, ?, 0, ?, ?, ?) RETURNING id`,
+    )
+    .bind(input.name, input.roomId ?? null, forMe ? meId : null, forMe ? meId : null, input.ownPriceCents ?? null, meId);
 }
 
 export async function getIdeaRows(db: D1Database, itemId: number): Promise<IdeaRow[]> {
