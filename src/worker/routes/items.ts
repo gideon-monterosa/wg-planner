@@ -9,8 +9,10 @@ import {
   getIdeaRows,
   getItemDetail,
   getVisibleItemRow,
+  insertItemStatement,
   listVisibleItems,
   pricingInput,
+  roomOwner,
   type ItemRow,
 } from "../items-query";
 
@@ -43,12 +45,6 @@ const patchBody = z.object({
   notes: z.string().max(2000).optional(),
 });
 
-async function roomOwner(db: D1Database, id: number): Promise<{ person_id: number | null }> {
-  const room = await db.prepare("SELECT person_id FROM rooms WHERE id = ?").bind(id).first<{ person_id: number | null }>();
-  if (!room) fail(400, "invalid_room", "That room does not exist");
-  return room;
-}
-
 const items = new Hono<AppEnv>();
 
 items.get("/items", async (c) => c.json(await listVisibleItems(c.env.DB, c.var.me.id)));
@@ -56,14 +52,7 @@ items.get("/items", async (c) => c.json(await listVisibleItems(c.env.DB, c.var.m
 items.post("/items", async (c) => {
   const body = await parseBody(c, createBody);
   const meId = c.var.me.id;
-  const room = body.roomId == null ? null : await roomOwner(c.env.DB, body.roomId);
-  const forMe = body.forMe ?? (room !== null && room.person_id === meId);
-  const created = await c.env.DB.prepare(
-    `INSERT INTO items (name, room_id, for_person_id, visible_to_all, payer_person_id, own_price_cents, created_by)
-     VALUES (?, ?, ?, 0, ?, ?, ?) RETURNING id`,
-  )
-    .bind(body.name, body.roomId ?? null, forMe ? meId : null, forMe ? meId : null, body.ownPriceCents ?? null, meId)
-    .first<{ id: number }>();
+  const created = await (await insertItemStatement(c.env.DB, body, meId)).first<{ id: number }>();
   return c.json(await getItemDetail(c.env.DB, created!.id, meId), 201);
 });
 

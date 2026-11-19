@@ -15,6 +15,17 @@ export interface Idea {
   id: number; itemId: number; title: string; url: string; shop: string;
   priceCents: number | null; imageUrl: string; notes: string; isFavorite: boolean;
 }
+/** An idea as listed by `GET /api/ideas`: `itemId` is null for an unlinked idea (then every `item*` field is null). */
+export interface IdeaWithItem extends Omit<Idea, "itemId"> {
+  itemId: number | null; itemName: string | null; roomId: number | null; itemStatus: Status | null;
+  itemForPersonId: number | null; itemVisibleToAll: boolean | null;
+  /** May edit, move or delete the idea itself. */
+  canEdit: boolean;
+  /** May edit the linked item (false when unlinked). */
+  canEditItem: boolean;
+  /** Created by the viewer. */
+  isMine: boolean;
+}
 export interface ItemDetail extends ItemSummary {
   ownPriceCents: number | null; pricePaidCents: number | null; notes: string; ideas: Idea[];
 }
