@@ -80,10 +80,13 @@ export interface ItemOptionGroup {
   items: ItemSummary[];
 }
 
-/** Items the viewer may edit (link or capture targets), as `<optgroup>`s in room order with "No room" last. */
+/**
+ * Items the viewer may edit (link, capture and move targets), as `<optgroup>`s in room order with "No room" last.
+ * Owned items are left out: the item modal hides their ideas.
+ */
 export function editableItemsByRoom(rooms: Room[], items: ItemSummary[]): ItemOptionGroup[] {
   const editable = items
-    .filter((i) => i.canEdit)
+    .filter((i) => i.canEdit && i.status !== "owned")
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }) || a.id - b.id);
   const known = new Set(rooms.map((r) => r.id));
   const groups: ItemOptionGroup[] = [];

@@ -142,16 +142,10 @@ function afterIdeaChange(qc: QueryClient, itemIds: (number | null | undefined)[]
   for (const id of ids) qc.invalidateQueries({ queryKey: ["item", id] });
 }
 
-/** Adds an idea from the item modal (always linked to that item). */
-export function useAddIdea() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ itemId, ...idea }: IdeaInput & { itemId: number; title: string }) =>
-      request<ItemDetail>("POST", `/api/items/${itemId}/ideas`, idea),
-    onSuccess: (d, v) => afterIdeaChange(qc, [v.itemId], d),
-  });
-}
-/** Quick capture: `POST /api/ideas`, linked when `itemId` is given, otherwise unlinked. */
+/**
+ * `POST /api/ideas` (quick capture and the item modal's "Add idea"): linked when `itemId` is given, otherwise
+ * unlinked. The title may be left out when a url is given.
+ */
 export function useCreateIdea() {
   const qc = useQueryClient();
   return useMutation({

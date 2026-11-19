@@ -81,5 +81,7 @@ it("maps the ideas API error codes to messages", () => {
   expect(ideaErrorMessage(new ApiError(403, "read_only"))).toBe("You can't edit that item.");
   expect(ideaErrorMessage(new ApiError(404, "not_found"))).toBe("That idea or item no longer exists.");
   expect(ideaErrorMessage(new ApiError(400, "invalid_body"))).toBe("Check the link (http or https) and the price.");
+  expect(ideaErrorMessage(new ApiError(400, "invalid_room"))).toBe("That room doesn't exist anymore.");
+  expect(ideaErrorMessage(new ApiError(400, "idea_not_on_item"))).toBe("That idea isn't on this item anymore.");
   expect(ideaErrorMessage(new Error("boom"))).toBe("Something went wrong. Try again.");
 });

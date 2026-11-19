@@ -73,6 +73,11 @@ describe("editableItemsByRoom", () => {
       ["No room", ["Mat"]],
     ]);
   });
+  it("leaves out owned items, since the modal hides their ideas", () => {
+    const owned = { ...item(5, "Kettle", 1), status: "owned" } as ItemSummary;
+    const bought = { ...item(6, "Toaster", 1), status: "bought" } as ItemSummary;
+    expect(editableItemsByRoom(ROOMS, [owned, bought]).map((g) => g.items.map((i) => i.name))).toEqual([["Toaster"]]);
+  });
   it("knows shared items", () => {
     expect(isSharedItem({ forPersonId: null, visibleToAll: false })).toBe(true);
     expect(isSharedItem({ forPersonId: 1, visibleToAll: true })).toBe(true);

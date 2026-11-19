@@ -4,14 +4,14 @@ import type { IdeaWithItem, ItemSummary, Room } from "../../shared/types.ts";
 import {
   useCreateIdea, useDeleteIdea, useIdeaToItem, useIdeas, useItems, useMe, usePatchIdea, useRooms, useSetFavorite,
 } from "../api.ts";
-import { formatChf, parseChfInput } from "../format.ts";
+import { formatChf, parseChfInput, withScheme } from "../format.ts";
 import { ideaErrorMessage } from "../ideaErrors.ts";
 import { editableItemsByRoom, groupIdeas, isSharedItem, type IdeaFilter, type ItemOptionGroup } from "../ideaGrouping.ts";
 
 const FILTERS: { value: IdeaFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "unlinked", label: "Not linked" },
-  { value: "mine", label: "Mine" },
+  { value: "mine", label: "Just mine" },
 ];
 
 // text-base on phones: iOS zooms into inputs with smaller text on focus.
@@ -21,10 +21,16 @@ const BTN =
 const PRIMARY =
   "inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent-fill)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50";
 const SHARED_HINT = "Everyone who can see this item will see the idea.";
+const MAKE_SHARED_HINT = "This creates an item for everyone, so they'll see the idea.";
 
-function ErrorText({ error }: { error: unknown }) {
+function ErrorText({ error, className = "basis-full" }: { error: unknown; className?: string }) {
   if (!error) return null;
-  return <p role="alert" className="basis-full text-sm text-[var(--danger)]">{ideaErrorMessage(error)}</p>;
+  return <p role="alert" className={`${className} text-sm text-[var(--danger)]`}>{ideaErrorMessage(error)}</p>;
+}
+
+/** Resets the other mutations before running one, so an old error doesn't linger next to a new action. */
+function resetAll(...mutations: { reset: () => void }[]) {
+  for (const m of mutations) m.reset();
 }
 
 /** A select of items the viewer may edit, grouped by room. */
@@ -50,17 +56,18 @@ function ItemSelect({
   );
 }
 
-function IdeaCapture({ groups }: { groups: ItemOptionGroup[] }) {
+function IdeaCapture({ groups, items }: { groups: ItemOptionGroup[]; items: ItemSummary[] }) {
   const create = useCreateIdea();
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [itemId, setItemId] = useState("");
   const [error, setError] = useState<"" | "missing" | "price">("");
+  const forItem = items.find((i) => i.id === Number(itemId));
 
   function submit(e: FormEvent) {
     e.preventDefault();
-    const link = url.trim();
+    const link = withScheme(url);
     const name = title.trim();
     if (!link && !name) return setError("missing");
     const cents = parseChfInput(price);
@@ -78,53 +85,59 @@ function IdeaCapture({ groups }: { groups: ItemOptionGroup[] }) {
           setUrl("");
           setTitle("");
           setPrice("");
+          // So the next idea isn't linked to the same item by surprise.
+          setItemId("");
         },
       },
     );
   }
 
   return (
-    <form onSubmit={submit} aria-label="Save an idea" className="mb-4 flex flex-wrap gap-2 lg:flex-nowrap">
-      <input
-        aria-label="Link"
-        inputMode="url"
-        autoComplete="off"
-        placeholder="Paste a link"
-        value={url}
-        onChange={(e) => {
-          setUrl(e.target.value);
-          setError("");
-        }}
-        className={`${FIELD} flex-1 basis-full sm:basis-0 lg:flex-[3]`}
-      />
-      <input
-        aria-label="Title"
-        placeholder="Title (optional)"
-        value={title}
-        onChange={(e) => {
-          setTitle(e.target.value);
-          setError("");
-        }}
-        className={`${FIELD} flex-1 basis-full sm:basis-0 lg:flex-[2]`}
-      />
-      <input
-        aria-label="Price"
-        aria-invalid={error === "price"}
-        inputMode="decimal"
-        placeholder="Price (CHF)"
-        value={price}
-        onChange={(e) => {
-          setPrice(e.target.value);
-          setError("");
-        }}
-        className={`${FIELD} w-28 lg:w-32`}
-      />
-      <ItemSelect label="For item" groups={groups} value={itemId} onChange={setItemId} placeholder="No item yet"
-        className="flex-1 lg:w-48 lg:flex-none" />
-      <button type="submit" disabled={create.isPending} className={PRIMARY}>Add</button>
-      {error === "missing" && <p role="alert" className="basis-full text-sm text-[var(--danger)]">Paste a link or type a title.</p>}
-      {error === "price" && <p role="alert" className="basis-full text-sm text-[var(--danger)]">Enter a price like 19,90</p>}
-      {create.isError && <ErrorText error={create.error} />}
+    <form onSubmit={submit} aria-label="Save an idea" className="mb-4">
+      {/* Hints and errors sit below this row at full width, so they never squeeze the fields on desktop. */}
+      <div className="flex flex-wrap gap-2 lg:flex-nowrap">
+        <input
+          aria-label="Link"
+          inputMode="url"
+          autoComplete="off"
+          placeholder="Paste a link"
+          value={url}
+          onChange={(e) => {
+            setUrl(e.target.value);
+            setError("");
+          }}
+          className={`${FIELD} flex-1 basis-full sm:basis-0 lg:flex-[3]`}
+        />
+        <input
+          aria-label="Title"
+          placeholder="Title (optional)"
+          value={title}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setError("");
+          }}
+          className={`${FIELD} flex-1 basis-full sm:basis-0 lg:flex-[2]`}
+        />
+        <input
+          aria-label="Price"
+          aria-invalid={error === "price"}
+          inputMode="decimal"
+          placeholder="Price (CHF)"
+          value={price}
+          onChange={(e) => {
+            setPrice(e.target.value);
+            setError("");
+          }}
+          className={`${FIELD} w-28 lg:w-32`}
+        />
+        <ItemSelect label="For item" groups={groups} value={itemId} onChange={setItemId} placeholder="No item yet"
+          className="flex-1 lg:w-48 lg:flex-none" />
+        <button type="submit" disabled={create.isPending} className={PRIMARY}>Add</button>
+      </div>
+      {forItem && isSharedItem(forItem) && <p className="mt-2 text-sm text-[var(--muted)]">{SHARED_HINT}</p>}
+      {error === "missing" && <p role="alert" className="mt-2 text-sm text-[var(--danger)]">Paste a link or type a title.</p>}
+      {error === "price" && <p role="alert" className="mt-2 text-sm text-[var(--danger)]">Enter a price like 19,90</p>}
+      {create.isError && <ErrorText error={create.error} className="mt-2" />}
     </form>
   );
 }
@@ -140,7 +153,8 @@ function IdeaBody({ idea }: { idea: IdeaWithItem }) {
         )}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 text-sm text-[var(--muted)]">
-        {idea.shop && <span className="min-w-0 truncate">{idea.shop}</span>}
+        {/* A link-only idea is titled after its shop: show that once. */}
+        {idea.shop && idea.shop !== idea.title && <span className="min-w-0 truncate">{idea.shop}</span>}
         {idea.url && (
           <a
             href={idea.url}
@@ -157,8 +171,8 @@ function IdeaBody({ idea }: { idea: IdeaWithItem }) {
   );
 }
 
-function UnlinkedIdeaCard({ idea, groups, rooms, items }: {
-  idea: IdeaWithItem; groups: ItemOptionGroup[]; rooms: Room[]; items: ItemSummary[];
+function UnlinkedIdeaCard({ idea, groups, rooms, items, meId }: {
+  idea: IdeaWithItem; groups: ItemOptionGroup[]; rooms: Room[]; items: ItemSummary[]; meId: number;
 }) {
   const patch = usePatchIdea();
   const toItem = useIdeaToItem();
@@ -167,6 +181,8 @@ function UnlinkedIdeaCard({ idea, groups, rooms, items }: {
   const [target, setTarget] = useState("");
   const [roomId, setRoomId] = useState("");
   const targetItem = items.find((i) => i.id === Number(target));
+  // An item made outside my own room is for everyone, so the private idea becomes visible.
+  const makesShared = rooms.find((r) => r.id === Number(roomId))?.personId !== meId;
   const busy = patch.isPending || toItem.isPending || del.isPending;
   const error = patch.error ?? toItem.error ?? del.error;
   const hasTargets = groups.length > 0;
@@ -185,7 +201,11 @@ function UnlinkedIdeaCard({ idea, groups, rooms, items }: {
             Make item
           </button>
           <button type="button" className={`${BTN} text-[var(--danger)]`} disabled={busy}
-            onClick={() => window.confirm(`Delete idea "${idea.title}"?`) && del.mutate(idea.id)}>
+            onClick={() => {
+              if (!window.confirm(`Delete idea "${idea.title}"?`)) return;
+              resetAll(patch, toItem);
+              del.mutate(idea.id);
+            }}>
             Delete
           </button>
         </div>
@@ -197,7 +217,10 @@ function UnlinkedIdeaCard({ idea, groups, rooms, items }: {
               <ItemSelect label={`Item for ${idea.title}`} groups={groups} value={target} onChange={setTarget}
                 placeholder="Choose an item…" className="w-full sm:w-auto sm:flex-1" />
               <button type="button" className={PRIMARY} disabled={!target || busy}
-                onClick={() => patch.mutate({ id: idea.id, itemId: Number(target), fromItemId: null })}>
+                onClick={() => {
+                  resetAll(toItem, del);
+                  patch.mutate({ id: idea.id, itemId: Number(target), fromItemId: null });
+                }}>
                 Link
               </button>
               {targetItem && isSharedItem(targetItem) && (
@@ -217,9 +240,13 @@ function UnlinkedIdeaCard({ idea, groups, rooms, items }: {
             {rooms.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
           <button type="button" className={PRIMARY} disabled={busy}
-            onClick={() => toItem.mutate({ id: idea.id, roomId: roomId === "" ? null : Number(roomId) })}>
+            onClick={() => {
+              resetAll(patch, del);
+              toItem.mutate({ id: idea.id, roomId: roomId === "" ? null : Number(roomId) });
+            }}>
             Create item
           </button>
+          {makesShared && <p className="basis-full text-sm text-[var(--muted)]">{MAKE_SHARED_HINT}</p>}
         </div>
       )}
       <ErrorText error={error} />
@@ -245,7 +272,10 @@ function LinkedIdeaRow({ idea, groups, items }: { idea: IdeaWithItem; groups: It
           aria-pressed={idea.isFavorite}
           aria-label={idea.isFavorite ? `Unstar ${idea.title}` : `Star ${idea.title}`}
           disabled={!idea.canEditItem || busy}
-          onClick={() => fav.mutate({ itemId, ideaId: idea.isFavorite ? null : idea.id })}
+          onClick={() => {
+            patch.reset();
+            fav.mutate({ itemId, ideaId: idea.isFavorite ? null : idea.id });
+          }}
           className="-ml-2 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded text-xl leading-none hover:bg-[var(--line)]/40 disabled:opacity-60 disabled:hover:bg-transparent"
         >
           <span aria-hidden="true" className={idea.isFavorite ? "text-[var(--accent)]" : ""}>{idea.isFavorite ? "★" : "☆"}</span>
@@ -262,7 +292,10 @@ function LinkedIdeaRow({ idea, groups, items }: { idea: IdeaWithItem; groups: It
             </button>
           )}
           <button type="button" className={BTN} disabled={busy}
-            onClick={() => patch.mutate({ id: idea.id, itemId: null, fromItemId: itemId })}>
+            onClick={() => {
+              fav.reset();
+              patch.mutate({ id: idea.id, itemId: null, fromItemId: itemId });
+            }}>
             Unlink
           </button>
         </div>
@@ -272,7 +305,10 @@ function LinkedIdeaRow({ idea, groups, items }: { idea: IdeaWithItem; groups: It
           <ItemSelect label={`Move ${idea.title} to`} groups={groups} value={target} onChange={setTarget}
             placeholder="Choose an item…" excludeId={itemId} className="w-full sm:w-auto sm:flex-1" />
           <button type="button" className={PRIMARY} disabled={!target || busy}
-            onClick={() => patch.mutate({ id: idea.id, itemId: Number(target), fromItemId: itemId }, { onSuccess: () => setMoving(false) })}>
+            onClick={() => {
+              fav.reset();
+              patch.mutate({ id: idea.id, itemId: Number(target), fromItemId: itemId }, { onSuccess: () => setMoving(false) });
+            }}>
             Move
           </button>
           {targetItem && isSharedItem(targetItem) && <p className="basis-full text-sm text-[var(--muted)]">{SHARED_HINT}</p>}
@@ -326,7 +362,7 @@ export default function Ideas() {
   return (
     <div>
       {heading}
-      <IdeaCapture groups={groups} />
+      <IdeaCapture groups={groups} items={items.data} />
       <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Filter ideas">
         {FILTERS.map((f) => (
           <button
@@ -364,7 +400,8 @@ export default function Ideas() {
               </h2>
               <ul className="grid grid-cols-1 gap-2 py-2 lg:grid-cols-2">
                 {grouped.unlinked.map((idea) => (
-                  <UnlinkedIdeaCard key={idea.id} idea={idea} groups={groups} rooms={rooms.data} items={items.data} />
+                  <UnlinkedIdeaCard key={idea.id} idea={idea} groups={groups} rooms={rooms.data} items={items.data}
+                    meId={me.data.id} />
                 ))}
               </ul>
             </section>
