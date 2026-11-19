@@ -51,3 +51,36 @@ describe("status pill contrast (WCAG AA, 4.5:1 for 12px text)", () => {
     }
   }
 });
+
+describe("theme token contrast (WCAG AA)", () => {
+  // [foreground, background, minimum ratio, what it covers]
+  const PAIRS: [string, string, number, string][] = [
+    ["#ffffff", "--accent-fill", 4.5, "white text on filled buttons"],
+    ["--accent", "--bg", 4.5, "accent text (active tab, links)"],
+    ["--accent", "--surface", 4.5, "accent text on cards and the item dialog"],
+    ["--danger", "--bg", 4.5, "error text"],
+    ["--danger", "--surface", 4.5, "error text in the item dialog"],
+    ["--muted", "--bg", 4.5, "muted text and placeholders"],
+    ["--muted", "--surface", 4.5, "muted text on cards"],
+    ["--fg", "--surface", 4.5, "body text on cards"],
+    ["--field-border", "--bg", 3, "form control and chip borders"],
+    ["--field-border", "--surface", 3, "form control borders on cards"],
+    ["--together", "--bg", 3, "paid-together bar"],
+    ["--unassigned", "--bg", 3, "payer-not-set bar"],
+  ];
+  const pick = (v: string, scope: Record<string, string>) => (v.startsWith("--") ? scope[v]! : v);
+  for (const [fg, bg, min, what] of PAIRS) {
+    for (const [mode, scope] of [["light", light], ["dark", dark]] as const) {
+      it(`${what}: ${fg} on ${bg} in ${mode} mode >= ${min}:1`, () => {
+        expect(pick(fg, scope)).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(pick(bg, scope)).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(contrast(pick(fg, scope), pick(bg, scope))).toBeGreaterThanOrEqual(min);
+      });
+    }
+  }
+
+  it("sets color-scheme for both themes", () => {
+    expect(css.slice(css.indexOf(":root"), css.indexOf("}", css.indexOf(":root")))).toMatch(/color-scheme:\s*light/);
+    expect(css.slice(darkStart, css.indexOf("}", css.indexOf(":root", darkStart)))).toMatch(/color-scheme:\s*dark/);
+  });
+});
