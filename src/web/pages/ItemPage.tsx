@@ -6,6 +6,7 @@ import {
 } from "../api.ts";
 import type { ItemInput } from "../api.ts";
 import { formatChf, parseChfInput } from "../format.ts";
+import { ideaErrorMessage } from "../ideaErrors.ts";
 import PriceLabel from "../components/PriceLabel.tsx";
 import StatusPill from "../components/StatusPill.tsx";
 import type { Idea, ItemDetail, Payer, Person, PriceInfo, Room, Status } from "../../shared/types.ts";
@@ -222,11 +223,7 @@ function AddSavedIdea({ itemId }: { itemId: number }) {
         </select>
       </Field>
       {patch.isError && (
-        <p role="alert" className="text-sm text-[var(--danger)]">
-          {patch.error instanceof ApiError && patch.error.code === "not_creator"
-            ? "Only the person who added this idea can move it."
-            : "Could not add the idea. Try again."}
-        </p>
+        <p role="alert" className="text-sm text-[var(--danger)]">{ideaErrorMessage(patch.error)}</p>
       )}
     </div>
   );

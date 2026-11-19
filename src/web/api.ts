@@ -83,6 +83,8 @@ export const useOverview = () => useQuery({ queryKey: ["overview"], queryFn: () 
 // ---- invalidation helpers ----
 const invalidateItems = (qc: QueryClient, itemId?: number) => {
   qc.invalidateQueries({ queryKey: ["items"] });
+  // Ideas carry their item's name, room and scope, and vanish with a deleted item.
+  qc.invalidateQueries({ queryKey: ["ideas"] });
   qc.invalidateQueries({ queryKey: ["overview"] });
   if (itemId !== undefined) qc.invalidateQueries({ queryKey: ["item", itemId] });
 };

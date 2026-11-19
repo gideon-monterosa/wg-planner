@@ -2,9 +2,10 @@ import { useState, type FormEvent } from "react";
 import { useLocation } from "wouter";
 import type { IdeaWithItem, ItemSummary, Room } from "../../shared/types.ts";
 import {
-  ApiError, useCreateIdea, useDeleteIdea, useIdeaToItem, useIdeas, useItems, useMe, usePatchIdea, useRooms, useSetFavorite,
+  useCreateIdea, useDeleteIdea, useIdeaToItem, useIdeas, useItems, useMe, usePatchIdea, useRooms, useSetFavorite,
 } from "../api.ts";
 import { formatChf, parseChfInput } from "../format.ts";
+import { ideaErrorMessage } from "../ideaErrors.ts";
 import { editableItemsByRoom, groupIdeas, isSharedItem, type IdeaFilter, type ItemOptionGroup } from "../ideaGrouping.ts";
 
 const FILTERS: { value: IdeaFilter; label: string }[] = [
@@ -20,17 +21,6 @@ const BTN =
 const PRIMARY =
   "inline-flex min-h-11 items-center justify-center rounded-lg bg-[var(--accent-fill)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50";
 const SHARED_HINT = "Everyone who can see this item will see the idea.";
-
-/** The message for a failed idea mutation. */
-export function ideaErrorMessage(err: unknown): string {
-  if (err instanceof ApiError) {
-    if (err.code === "not_creator") return "Only the person who added this idea can move it.";
-    if (err.code === "read_only") return "You can't edit that item.";
-    if (err.status === 404) return "That idea or item no longer exists.";
-    if (err.status === 400) return "Check the link and the price.";
-  }
-  return "Something went wrong. Try again.";
-}
 
 function ErrorText({ error }: { error: unknown }) {
   if (!error) return null;
