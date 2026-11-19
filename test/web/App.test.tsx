@@ -199,6 +199,19 @@ it("marks Ideas active on /ideas and shows the Ideas page", async () => {
   expect(screen.queryByRole("group", { name: "Filter" })).toBeNull();
 });
 
+it("opens an item over the Ideas page, keeps Ideas active, and closes back to it", async () => {
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  const loc = renderApp("/ideas");
+  await screen.findByRole("heading", { name: "Ideas" });
+  act(() => loc.navigate("/items/1"));
+  await screen.findByRole("dialog");
+  expect(screen.getByRole("heading", { name: "Ideas" })).toBeInTheDocument();
+  expect(screen.queryByRole("group", { name: "Filter" })).toBeNull();
+  expect(activeTabs()).toEqual(["Ideas"]);
+  fireEvent.click(screen.getByRole("button", { name: "Close" }));
+  expect(back).toHaveBeenCalledTimes(1);
+});
+
 it("marks Overview active on /overview", async () => {
   renderApp("/overview");
   await screen.findByTestId("top-nav");
