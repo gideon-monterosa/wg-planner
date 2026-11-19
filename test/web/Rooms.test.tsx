@@ -85,8 +85,17 @@ it("shows an error when reordering fails", async () => {
   expect(await screen.findByRole("alert")).toHaveTextContent("Could not reorder the rooms");
 });
 
-it("room names get a minimum width so the controls wrap at 375px instead of cutting the name", async () => {
+it("room names take a full row on phones so the controls go below instead of cutting the name", async () => {
   failingWrites();
   renderRooms();
-  expect(await screen.findByLabelText("Name of Kitchen")).toHaveClass("min-w-[10rem]");
+  expect(await screen.findByLabelText("Name of Kitchen")).toHaveClass("basis-full");
+  expect(screen.getByRole("button", { name: "Delete Kitchen" })).toHaveClass("ml-auto");
+});
+
+it("warns about a duplicate room name but still allows it", async () => {
+  failingWrites();
+  renderRooms();
+  fireEvent.change(await screen.findByLabelText("New room name"), { target: { value: " kitchen " } });
+  expect(screen.getByText(/already a room with this name/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Add room" })).toBeEnabled();
 });
