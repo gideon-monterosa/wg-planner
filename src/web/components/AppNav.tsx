@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useRoute } from "wouter";
 
-type TabHref = "/" | "/ideas" | "/overview";
+export type TabHref = "/" | "/ideas" | "/overview";
 
 const ICON = {
   width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8,
@@ -40,13 +40,17 @@ const TABS: { href: TabHref; label: string; icon: ReactNode }[] = [
   },
 ];
 
-/** The tab that matches the current route: List also covers an open item; no tab elsewhere. */
-function useActiveTab(): TabHref | null {
+/**
+ * The tab that matches the current route; no tab elsewhere. An open item belongs to the page it overlays
+ * (`itemTab`: List by default, Ideas when opened from there).
+ */
+function useActiveTab(itemTab: TabHref = "/"): TabHref | null {
   const [isList] = useRoute("/");
   const [isItem] = useRoute("/items/:id");
   const [isIdeas] = useRoute("/ideas");
   const [isOverview] = useRoute("/overview");
-  if (isList || isItem) return "/";
+  if (isItem) return itemTab;
+  if (isList) return "/";
   if (isIdeas) return "/ideas";
   if (isOverview) return "/overview";
   return null;
@@ -72,8 +76,8 @@ function GearLink() {
 }
 
 /** App bar: title and gear on phones; from 768px a sticky bar that also holds the tabs. */
-export function TopBar({ inert }: { inert?: boolean }) {
-  const active = useActiveTab();
+export function TopBar({ inert, itemTab }: { inert?: boolean; itemTab?: TabHref }) {
+  const active = useActiveTab(itemTab);
   return (
     <header
       inert={inert}
@@ -105,8 +109,8 @@ export function TopBar({ inert }: { inert?: boolean }) {
 }
 
 /** Tab bar fixed to the bottom on phones; hidden from 768px, where the top bar holds the tabs. */
-export function BottomNav({ inert }: { inert?: boolean }) {
-  const active = useActiveTab();
+export function BottomNav({ inert, itemTab }: { inert?: boolean; itemTab?: TabHref }) {
+  const active = useActiveTab(itemTab);
   return (
     <nav
       inert={inert}

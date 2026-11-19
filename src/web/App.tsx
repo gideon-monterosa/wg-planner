@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Redirect, Route, Switch, useLocation, useRoute } from "wouter";
 import { ApiError, useMe } from "./api.ts";
 import { BottomNav, TopBar } from "./components/AppNav.tsx";
@@ -16,7 +16,11 @@ function Shell() {
   const [isIdeas] = useRoute("/ideas");
   const [isOverview] = useRoute("/overview");
   const [isSettings] = useRoute("/settings");
-  // Track whether the entry before the current one is the list inside this app (not a deep link).
+  // The page an item dialog overlays: the one it was opened from (List or Ideas); a deep link gets the list.
+  const [background, setBackground] = useState<"/" | "/ideas">(isIdeas ? "/ideas" : "/");
+  const nextBackground = isIdeas ? "/ideas" : isItem ? background : "/";
+  if (nextBackground !== background) setBackground(nextBackground);
+  // Track whether the entry before the current one is that page inside this app (not a deep link).
   const prev = useRef<string | null>(null);
   const cur = useRef(location);
   useEffect(() => {
@@ -35,18 +39,21 @@ function Shell() {
   const closeItem = () => {
     if (closing.current) return;
     closing.current = true;
-    if (prev.current === "/") window.history.back();
-    else navigate("/", { replace: true });
+    if (prev.current === nextBackground) window.history.back();
+    else navigate(nextBackground, { replace: true });
   };
 
   const known = isItem || isList || isIdeas || isOverview || isSettings;
+  // List and Ideas stay mounted under an open item, so closing it keeps their filters and drafts.
+  const showList = isList || (isItem && nextBackground === "/");
+  const showIdeas = isIdeas || (isItem && nextBackground === "/ideas");
   return (
     <div className="min-h-dvh">
-      <TopBar inert={isItem} />
+      <TopBar inert={isItem} itemTab={nextBackground} />
       <main className="mx-auto max-w-xl px-4 pt-2 pb-24 md:max-w-5xl md:px-6 md:pt-6 md:pb-8" inert={isItem}>
-        {(isList || isItem) && <MovingList />}
+        {showList && <MovingList />}
+        {showIdeas && <Ideas />}
         <Switch>
-          <Route path="/ideas" component={Ideas} />
           <Route path="/overview" component={Overview} />
           <Route path="/settings" component={Settings} />
           <Route path="/rooms"><Redirect to="/settings" replace /></Route>
@@ -55,7 +62,7 @@ function Shell() {
         </Switch>
       </main>
       {isItem && <ItemModal id={Number(itemParams?.id)} onClose={closeItem} />}
-      <BottomNav inert={isItem} />
+      <BottomNav inert={isItem} itemTab={nextBackground} />
     </div>
   );
 }
