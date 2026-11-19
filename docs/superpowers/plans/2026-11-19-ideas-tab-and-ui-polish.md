@@ -77,4 +77,5 @@ SQLite can't drop NOT NULL in place, so recreate `ideas` with data preserved:
 7. **Filters are All / Not linked / Mine.**
 8. **Desktop gets a top nav and a wider multi-column layout.** Mobile keeps the bottom nav.
 9. **The item modal gains "Add from your saved ideas".**
+11. **Only an idea's creator can link, move, unlink or "make item" it.** Others who can edit a shared item can still edit an idea's details and star it, but they can't move someone else's idea away. Moving it onto a hidden item would otherwise make it vanish for the person who added it.
 10. **Integration only.** Push to `main` deploys integration; production waits for a `v1.1.0` tag from Gideon.
