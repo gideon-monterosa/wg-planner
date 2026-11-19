@@ -28,6 +28,13 @@ export function formatPrice(p: PriceInfo): string {
   }
 }
 
+/** Trims a pasted link and adds "https://" when it has no scheme ("ikea.ch/x" -> "https://ikea.ch/x"). */
+export function withScheme(s: string): string {
+  const t = s.trim();
+  if (t === "" || /^[a-z][a-z\d+.-]*:\/\//i.test(t)) return t;
+  return `https://${t}`;
+}
+
 /** Parses user-typed CHF amounts to cents ("19.90", "19,9", "1'190.–", "CHF 19.-"). "" -> null; garbage/negative -> "invalid". */
 export function parseChfInput(s: string): number | null | "invalid" {
   const t = s

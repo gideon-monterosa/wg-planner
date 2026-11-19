@@ -11,7 +11,10 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const ROOMS: Room[] = [{ id: 1, name: "Kitchen", personId: null, sort: 1 }];
+const ROOMS: Room[] = [
+  { id: 1, name: "Kitchen", personId: null, sort: 1 },
+  { id: 2, name: "Gideon", personId: 1, sort: 2 },
+];
 const summary = (over: Partial<ItemSummary>): ItemSummary => ({
   id: 0, name: "", roomId: null, forPersonId: null, visibleToAll: false, status: "needed", payer: { kind: "none" },
   quantity: 1, ideaCount: 0, price: { kind: "none" }, plannedCents: 0, spentCents: 0, canEdit: true, ...over,
@@ -74,11 +77,11 @@ it("shows Not linked yet first, then rooms with No room last", async () => {
   expect(screen.getByText("CHF 49.90")).toHaveClass("whitespace-nowrap");
 });
 
-it("filters to Not linked and Mine, and says when nothing matches", async () => {
+it("filters to Not linked and Just mine, and says when nothing matches", async () => {
   renderIdeas({ ideas: [ON_DESK] });
   await screen.findByText("Oak desk");
-  fireEvent.click(screen.getByRole("button", { name: "Mine" }));
-  expect(screen.getByRole("button", { name: "Mine" })).toHaveAttribute("aria-pressed", "true");
+  fireEvent.click(screen.getByRole("button", { name: "Just mine" }));
+  expect(screen.getByRole("button", { name: "Just mine" })).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByText("Nothing matches this filter.")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Not linked" }));
   expect(screen.getByText("Nothing matches this filter.")).toBeInTheDocument();
@@ -128,6 +131,61 @@ it("quick capture submits on Enter with the link, price and item", async () => {
   await waitFor(() => expect(writes()).toHaveLength(1));
   expect(writes()[0]).toEqual({ method: "POST", path: "/api/ideas", body: { url: "https://x.example/rug", priceCents: 1990, itemId: 5 } });
   await waitFor(() => expect(screen.getByLabelText("Link")).toHaveValue(""));
+});
+
+it("quick capture shows errors below the field row, not inside it", async () => {
+  renderIdeas();
+  await screen.findByText("Lamp");
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  const form = screen.getByRole("form", { name: "Save an idea" });
+  expect(screen.getByRole("alert").parentElement).toBe(form);
+  expect(screen.getByLabelText("Link").parentElement).not.toBe(form);
+});
+
+it("quick capture adds https:// to a bare link, shows the shared hint and resets For item after saving", async () => {
+  const { writes } = renderIdeas();
+  await screen.findByText("Lamp");
+  const forItem = screen.getByLabelText("For item");
+  fireEvent.change(forItem, { target: { value: "6" } });
+  expect(screen.queryByText("Everyone who can see this item will see the idea.")).toBeNull();
+  fireEvent.change(forItem, { target: { value: "5" } });
+  expect(screen.getByText("Everyone who can see this item will see the idea.")).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Link"), { target: { value: "x.example/rug" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  await waitFor(() => expect(writes()).toHaveLength(1));
+  expect(writes()[0]!.body).toEqual({ url: "https://x.example/rug", itemId: 5 });
+  await waitFor(() => expect(screen.getByLabelText("For item")).toHaveValue(""));
+});
+
+it("Make item says the idea becomes shared unless the room is my own", async () => {
+  renderIdeas();
+  await screen.findByText("Lamp");
+  fireEvent.click(screen.getByRole("button", { name: "Make item" }));
+  const hint = "This creates an item for everyone, so they'll see the idea.";
+  expect(screen.getByText(hint)).toBeInTheDocument();
+  fireEvent.change(screen.getByLabelText("Room for Lamp"), { target: { value: "2" } });
+  expect(screen.queryByText(hint)).toBeNull();
+  fireEvent.change(screen.getByLabelText("Room for Lamp"), { target: { value: "1" } });
+  expect(screen.getByText(hint)).toBeInTheDocument();
+});
+
+it("clears an old error when another action starts", async () => {
+  renderIdeas({
+    respond: (c) =>
+      c.method === "PATCH" ? new Response(JSON.stringify({ error: "not_creator", message: "No" }), { status: 403 }) : undefined,
+  });
+  await screen.findByText("Steel pan");
+  fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
+  expect(await screen.findByRole("alert")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Star Steel pan" }));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+});
+
+it("shows the shop once when it is also the title", async () => {
+  renderIdeas({ ideas: [base({ id: 1, title: "shop.example", url: "https://shop.example/x", shop: "shop.example" }), { ...ON_PAN, title: "ikea.ch", shop: "ikea.ch" }] });
+  await screen.findByText("shop.example");
+  expect(screen.getAllByText("shop.example")).toHaveLength(1);
+  expect(screen.getAllByText("ikea.ch")).toHaveLength(1);
 });
 
 it("links an unlinked idea to an item, with the shared hint", async () => {

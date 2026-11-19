@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
-  ApiError, useAddIdea, useDeleteIdea, useDeleteItem, useIdeas, useItem, useMe, usePatchIdea, usePatchItem,
+  ApiError, useCreateIdea, useDeleteIdea, useDeleteItem, useIdeas, useItem, useMe, usePatchIdea, usePatchItem,
   usePeople, useRooms, useSetFavorite,
 } from "../api.ts";
 import type { ItemInput } from "../api.ts";
-import { formatChf, parseChfInput } from "../format.ts";
+import { formatChf, parseChfInput, withScheme } from "../format.ts";
 import { ideaErrorMessage } from "../ideaErrors.ts";
 import PriceLabel from "../components/PriceLabel.tsx";
 import StatusPill from "../components/StatusPill.tsx";
@@ -133,6 +133,7 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
         </div>
         <input aria-label="Idea notes" className={INPUT} value={f.notes} onChange={set("notes")} placeholder="Notes" />
         {bad && <p className="text-sm text-[var(--danger)]">Needs a title and a valid price.</p>}
+        {patch.isError && <p role="alert" className="text-sm text-[var(--danger)]">{ideaErrorMessage(patch.error)}</p>}
         <div className="flex gap-2">
           <button type="button" className={BTN} onClick={save} disabled={patch.isPending}>Save</button>
           <button type="button" className={BTN} onClick={() => setEditing(false)}>Cancel</button>
@@ -160,7 +161,8 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
           </span>
           {idea.priceCents !== null && <span className="shrink-0 whitespace-nowrap tabular-nums">{formatChf(idea.priceCents)}</span>}
         </div>
-        {idea.shop && <div className="text-sm text-[var(--muted)]">{idea.shop}</div>}
+        {/* A link-only idea is titled after its shop: show that once. */}
+        {idea.shop && idea.shop !== idea.title && <div className="text-sm text-[var(--muted)]">{idea.shop}</div>}
         {idea.notes && <div className="text-sm text-[var(--muted)]">{idea.notes}</div>}
         {editable && (
           <div className="-ml-2 flex gap-1 text-sm">
@@ -176,20 +178,24 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
 
 function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
   const perPiece = quantity > 1;
-  const add = useAddIdea();
+  const add = useCreateIdea();
   const [url, setUrl] = useState("");
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [err, setErr] = useState("");
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    const link = withScheme(url);
+    const name = title.trim();
     const cents = parseChfInput(price);
-    if (!title.trim()) return setErr("Give the idea a title.");
+    // The title is optional with a link: the server falls back to the shop or host (Decision 6).
+    if (!link && !name) return setErr("Paste a link or type a title.");
     if (cents === "invalid") return setErr("Enter a price like 19,90.");
     setErr("");
-    add.mutate({ itemId, title: title.trim(), url: url.trim(), priceCents: cents }, {
-      onSuccess: () => { setUrl(""); setTitle(""); setPrice(""); },
-    });
+    add.mutate(
+      { itemId, ...(link ? { url: link } : {}), ...(name ? { title: name } : {}), ...(cents !== null ? { priceCents: cents } : {}) },
+      { onSuccess: () => { setUrl(""); setTitle(""); setPrice(""); } },
+    );
   };
   return (
     <form onSubmit={submit} className="mt-3 space-y-2 rounded-lg border border-dashed border-[var(--field-border)] p-2">
@@ -199,7 +205,7 @@ function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
         <input aria-label={perPiece ? "New idea price per piece" : "New idea price"} className={`${INPUT} ${perPiece ? "max-w-36" : "max-w-28"}`}
           inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder={perPiece ? "Price per piece" : "CHF"} />
       </div>
-      {(err || add.isError) && <p className="text-sm text-[var(--danger)]">{err || "Could not add the idea."}</p>}
+      {(err || add.isError) && <p role="alert" className="text-sm text-[var(--danger)]">{err || ideaErrorMessage(add.error)}</p>}
       <button type="submit" className={BTN} disabled={add.isPending}>Add idea</button>
     </form>
   );

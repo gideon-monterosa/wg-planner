@@ -155,7 +155,7 @@ function assertCreator(idea: IdeaDbRow, meId: number): void {
  * The same rule as unstarring: the item goes back from decided to needed, unless it still has a favorite
  * (guards against a concurrent star landing between our read and this write).
  */
-function revertDecided(db: D1Database, itemId: number): D1PreparedStatement {
+export function revertDecided(db: D1Database, itemId: number): D1PreparedStatement {
   return db
     .prepare(
       `UPDATE items SET status = 'needed', updated_at = datetime('now')

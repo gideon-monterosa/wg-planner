@@ -16,8 +16,11 @@ describe("migration 0003_unlinked_ideas", () => {
         `INSERT INTO ideas (id, item_id, title, url, shop, price_cents, image_url, notes, is_favorite, created_by, created_at, updated_at)
          VALUES (1, 1, 'A', 'https://a.de/x', 'a.de', 74900, 'https://a.de/i.png', 'n1', 1, 1, '2026-01-01 10:00:00', '2026-01-02 10:00:00'),
                 (2, 1, 'B', '', '', NULL, '', '', 0, 1, '2026-01-03 10:00:00', '2026-01-03 10:00:00'),
-                (3, 2, 'C', '', 'shop', 100, '', '', 0, 1, '2026-01-04 10:00:00', '2026-01-04 10:00:00')`,
+                (3, 2, 'C', '', 'shop', 100, '', '', 0, 1, '2026-01-04 10:00:00', '2026-01-04 10:00:00'),
+                (5, 2, 'D', '', '', NULL, '', '', 0, 1, '2026-01-05 10:00:00', '2026-01-05 10:00:00')`,
       ),
+      // A deleted idea leaves the AUTOINCREMENT sequence at 5; its id must not be reused.
+      db.prepare("DELETE FROM ideas WHERE id = 5"),
     ]);
     const snapshot = await db.prepare("SELECT * FROM ideas ORDER BY id").all();
 
@@ -37,7 +40,7 @@ describe("migration 0003_unlinked_ideas", () => {
     );
     await db.prepare("DELETE FROM items WHERE id = 2").run();
     const left = await db.prepare("SELECT id FROM ideas ORDER BY id").all<{ id: number }>();
-    expect(left.results.map((r) => r.id)).toEqual([1, 2, 4]);
+    expect(left.results.map((r) => r.id)).toEqual([1, 2, 6]);
 
     const indexes = await db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'ideas' AND sql IS NOT NULL ORDER BY name")

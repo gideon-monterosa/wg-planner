@@ -12,6 +12,10 @@ export function ideaErrorMessage(err: unknown): string {
         return "That idea or item no longer exists.";
       case "invalid_body":
         return "Check the link (http or https) and the price.";
+      case "invalid_room":
+        return "That room doesn't exist anymore.";
+      case "idea_not_on_item":
+        return "That idea isn't on this item anymore.";
     }
   }
   return "Something went wrong. Try again.";

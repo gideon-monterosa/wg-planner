@@ -39,6 +39,17 @@ function renderList(items = ITEMS) {
   );
 }
 
+it("shows quick add errors below the field row, not inside it", async () => {
+  renderList();
+  const name = await screen.findByLabelText("Item name");
+  fireEvent.change(name, { target: { value: "Pan" } });
+  fireEvent.change(screen.getByLabelText("Price"), { target: { value: "abc" } });
+  fireEvent.click(screen.getByRole("button", { name: "Add" }));
+  const form = screen.getByRole("form", { name: "Quick add" });
+  expect(screen.getByRole("alert").parentElement).toBe(form);
+  expect(name.parentElement).not.toBe(form);
+});
+
 it("keeps the 'only you' badge outside the truncated name", async () => {
   renderList();
   const badge = await screen.findByText("only you");

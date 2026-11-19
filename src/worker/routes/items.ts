@@ -4,6 +4,7 @@ import type { AppEnv } from "../env";
 import { fail } from "../http";
 import { parseBody, pathId } from "../route-utils";
 import { defaultPricePaid } from "../../shared/pricing";
+import { revertDecided } from "./ideas";
 import {
   assertCanEdit,
   getIdeaRows,
@@ -45,6 +46,13 @@ const patchBody = z.object({
   notes: z.string().max(2000).optional(),
 });
 
+/** Moves ideas other people saved on an item to their creators' unlinked list. */
+function unlinkOthersIdeas(db: D1Database, itemId: number, meId: number): D1PreparedStatement {
+  return db
+    .prepare("UPDATE ideas SET item_id = NULL, is_favorite = 0 WHERE item_id = ? AND created_by <> ?")
+    .bind(itemId, meId);
+}
+
 const items = new Hono<AppEnv>();
 
 items.get("/items", async (c) => c.json(await listVisibleItems(c.env.DB, c.var.me.id)));
@@ -71,7 +79,8 @@ items.patch("/items/:id", async (c) => {
     if (body.roomId !== null) await roomOwner(db, body.roomId);
     next.room_id = body.roomId;
   }
-  if (body.forMe === true && row.for_person_id === null) {
+  const becomesPersonal = body.forMe === true && row.for_person_id === null;
+  if (becomesPersonal) {
     // Switched from Everyone to Just me: stays visible so it doesn't vanish for the others.
     next.for_person_id = meId;
     next.visible_to_all = 1;
@@ -105,7 +114,7 @@ items.patch("/items/:id", async (c) => {
     }
   }
 
-  await db
+  const update = db
     .prepare(
       `UPDATE items SET name = ?, room_id = ?, for_person_id = ?, visible_to_all = ?, status = ?,
          payer_person_id = ?, paid_together = ?, quantity = ?, own_price_cents = ?, price_paid_cents = ?,
@@ -125,8 +134,16 @@ items.patch("/items/:id", async (c) => {
       next.price_paid_cents,
       next.notes,
       row.id,
-    )
-    .run();
+    );
+  if (becomesPersonal) {
+    // Decision 12: other people's ideas go back to their creators' "Not linked yet" list. If that took the
+    // favorite, the item goes back from decided to needed, unless this patch sets a status itself.
+    const statements = [unlinkOthersIdeas(db, row.id, meId), update];
+    if (body.status === undefined) statements.push(revertDecided(db, row.id));
+    await db.batch(statements);
+  } else {
+    await update.run();
+  }
   return c.json(await getItemDetail(db, row.id, meId));
 });
 
@@ -135,7 +152,9 @@ items.delete("/items/:id", async (c) => {
   const meId = c.var.me.id;
   const row = await getVisibleItemRow(db, pathId(c), meId);
   assertCanEdit(row, meId);
+  // Decision 13: other people's ideas are unlinked, the deleter's own go with the item.
   await db.batch([
+    unlinkOthersIdeas(db, row.id, meId),
     db.prepare("DELETE FROM ideas WHERE item_id = ?").bind(row.id),
     db.prepare("DELETE FROM items WHERE id = ?").bind(row.id),
   ]);

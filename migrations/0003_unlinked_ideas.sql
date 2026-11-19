@@ -22,6 +22,15 @@ CREATE TABLE ideas_new (
 INSERT INTO ideas_new (id, item_id, title, url, shop, price_cents, image_url, notes, is_favorite, created_by, created_at, updated_at)
 SELECT id, item_id, title, url, shop, price_cents, image_url, notes, is_favorite, created_by, created_at, updated_at FROM ideas;
 
+-- Carry over the AUTOINCREMENT sequence so ids of deleted ideas aren't reused.
+-- (DROP TABLE removes the old sequence row; RENAME moves this one to "ideas".)
+UPDATE sqlite_sequence
+SET seq = max(seq, (SELECT seq FROM sqlite_sequence WHERE name = 'ideas'))
+WHERE name = 'ideas_new' AND EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'ideas');
+INSERT INTO sqlite_sequence (name, seq)
+SELECT 'ideas_new', seq FROM sqlite_sequence
+WHERE name = 'ideas' AND NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name = 'ideas_new');
+
 DROP TABLE ideas;
 ALTER TABLE ideas_new RENAME TO ideas;
 

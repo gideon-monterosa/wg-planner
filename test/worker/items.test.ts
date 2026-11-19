@@ -103,6 +103,44 @@ describe("privacy", () => {
     expect((await api(`/api/items/${id}`, { as: LENA })).status).toBe(200);
   });
 
+  it("switching a shared item to just me unlinks other people's ideas (Decision 12)", async () => {
+    const id = (await post<ItemDetail>("/api/items", { name: "Rug", roomId: kitchen })).id;
+    await env.DB.prepare("INSERT INTO ideas (item_id, title, is_favorite, created_by) VALUES (?, 'Mine', 0, ?), (?, 'Hers', 1, ?)")
+      .bind(id, gideon, id, lena)
+      .run();
+    const d = await patchOk(id, { forMe: true });
+    expect(d.ideas.map((i) => i.title)).toEqual(["Mine"]);
+    const rows = await env.DB.prepare("SELECT title, item_id, is_favorite FROM ideas ORDER BY title").all();
+    expect(rows.results).toEqual([
+      { title: "Hers", item_id: null, is_favorite: 0 },
+      { title: "Mine", item_id: id, is_favorite: 0 },
+    ]);
+    // Lena keeps it in her own unlinked list.
+    const hers = (await (await api("/api/ideas", { as: LENA })).json()) as { title: string; itemId: number | null }[];
+    expect(hers.find((i) => i.title === "Hers")).toMatchObject({ itemId: null });
+    // forMe: true on an item that is already personal leaves ideas alone.
+    await env.DB.prepare("UPDATE ideas SET item_id = ? WHERE title = 'Hers'").bind(id).run();
+    await patchOk(id, { forMe: true });
+    const still = await env.DB.prepare("SELECT item_id FROM ideas WHERE title = 'Hers'").first<{ item_id: number }>();
+    expect(still!.item_id).toBe(id);
+  });
+
+  it("switching a decided shared item to just me reverts it to needed when it loses the favorite", async () => {
+    const id = (await post<ItemDetail>("/api/items", { name: "Rug", roomId: kitchen })).id;
+    await env.DB.prepare("INSERT INTO ideas (item_id, title, is_favorite, created_by) VALUES (?, 'Hers', 1, ?)").bind(id, lena).run();
+    await env.DB.prepare("UPDATE items SET status = 'decided' WHERE id = ?").bind(id).run();
+    expect(await patchOk(id, { forMe: true })).toMatchObject({ status: "needed", ideas: [] });
+    const hers = await env.DB.prepare("SELECT item_id, is_favorite FROM ideas WHERE title = 'Hers'").first();
+    expect(hers).toEqual({ item_id: null, is_favorite: 0 });
+  });
+
+  it("an explicit status in the same patch wins over the revert", async () => {
+    const id = (await post<ItemDetail>("/api/items", { name: "Rug", roomId: kitchen })).id;
+    await env.DB.prepare("INSERT INTO ideas (item_id, title, is_favorite, created_by) VALUES (?, 'Hers', 1, ?)").bind(id, lena).run();
+    await env.DB.prepare("UPDATE items SET status = 'decided' WHERE id = ?").bind(id).run();
+    expect(await patchOk(id, { forMe: true, status: "decided" })).toMatchObject({ status: "decided" });
+  });
+
   it("switching a personal item to everyone makes it shared and editable by others", async () => {
     const id = (await post<ItemDetail>("/api/items", { name: "Desk", forMe: true })).id;
     expect(await patchOk(id, { forMe: false })).toMatchObject({ forPersonId: null });
@@ -211,5 +249,15 @@ describe("updating and deleting", () => {
     expect((await api(`/api/items/${id}`)).status).toBe(404);
     const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM ideas WHERE item_id = ?").bind(id).first<{ n: number }>();
     expect(n!.n).toBe(0);
+  });
+
+  it("deleting an item unlinks other people's ideas instead of deleting them (Decision 13)", async () => {
+    const id = (await post<ItemDetail>("/api/items", { name: "Pan", roomId: kitchen })).id;
+    await env.DB.prepare("INSERT INTO ideas (item_id, title, is_favorite, created_by) VALUES (?, 'Mine', 0, ?), (?, 'Hers', 1, ?)")
+      .bind(id, gideon, id, lena)
+      .run();
+    expect((await api(`/api/items/${id}`, { method: "DELETE" })).status).toBe(204);
+    const rows = await env.DB.prepare("SELECT title, item_id, is_favorite FROM ideas ORDER BY title").all();
+    expect(rows.results).toEqual([{ title: "Hers", item_id: null, is_favorite: 0 }]);
   });
 });

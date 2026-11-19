@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatChf, formatPrice, parseChfInput } from "../../src/web/format";
+import { formatChf, formatPrice, parseChfInput, withScheme } from "../../src/web/format";
 
 describe("parseChfInput", () => {
   it.each([["19", 1900], ["19,99", 1999], ["19.99", 1999], ["CHF 19,5", 1950], ["19.–", 1900], ["Fr. 19.-", 1900], ["1'190.–", 119000], ["1.190", 119000], ["1,190", 119000], ["1.190,50", 119050], ["1,190.50", 119050]])(
@@ -22,4 +22,14 @@ describe("formatting", () => {
     expect(formatChf(1999)).toBe("CHF 19.99");
     expect(formatChf(74900)).toBe("CHF 749.–");
   });
+});
+
+describe("withScheme", () => {
+  it.each([
+    ["shop.example/lamp", "https://shop.example/lamp"],
+    ["  www.ikea.ch/x ", "https://www.ikea.ch/x"],
+    ["https://a.de/x", "https://a.de/x"],
+    ["HTTP://a.de", "HTTP://a.de"],
+    ["  ", ""],
+  ])("turns %j into %j", (s, out) => expect(withScheme(s)).toBe(out));
 });
