@@ -74,8 +74,10 @@ SQLite can't drop NOT NULL in place, so recreate `ideas` with data preserved:
 4. **Moving or unlinking a favorite clears the star** and moves the old item `decided` → `needed`.
 5. **"Make item" doesn't star the idea.** The new item starts as *needed* with the idea's price shown as a range, so starring stays a deliberate choice.
 6. **The title is optional when a link is given.** It falls back to the shop or host. Editing it later is possible.
-7. **Filters are All / Not linked / Mine.**
+7. **Filters are All / Not linked / Just mine.**
 8. **Desktop gets a top nav and a wider multi-column layout.** Mobile keeps the bottom nav.
 9. **The item modal gains "Add from your saved ideas".**
 11. **Only an idea's creator can link, move, unlink or "make item" it.** Others who can edit a shared item can still edit an idea's details and star it, but they can't move someone else's idea away. Moving it onto a hidden item would otherwise make it vanish for the person who added it.
 10. **Integration only.** Push to `main` deploys integration; production waits for a `v1.1.0` tag from Gideon.
+12. **Turning a shared item into "Just me" unlinks other people's ideas.** In PATCH `/api/items/:id`, when `forMe: true` switches a shared item to personal, set `item_id = NULL, is_favorite = 0` on ideas whose `created_by != me`, in the same batch. Their creators keep them in their private "Not linked yet" list.
+13. **Deleting an item unlinks other people's ideas instead of deleting them.** In DELETE `/api/items/:id`, first set `item_id = NULL, is_favorite = 0` on ideas whose `created_by != me`, then delete the item; the deleter's own ideas cascade away as before.
