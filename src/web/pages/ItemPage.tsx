@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import {
-  ApiError, useAddIdea, useDeleteIdea, useDeleteItem, useItem, useMe, usePatchIdea, usePatchItem,
+  ApiError, useAddIdea, useDeleteIdea, useDeleteItem, useIdeas, useItem, useMe, usePatchIdea, usePatchItem,
   usePeople, useRooms, useSetFavorite,
 } from "../api.ts";
 import type { ItemInput } from "../api.ts";
@@ -112,7 +112,7 @@ function IdeaRow({ item, idea, editable }: { item: ItemDetail; idea: Idea; edita
     if (price === "invalid" || !f.title.trim()) return setBad(true);
     setBad(false);
     patch.mutate(
-      { id: idea.id, title: f.title.trim(), url: f.url.trim(), shop: f.shop.trim(), priceCents: price, imageUrl: f.imageUrl.trim(), notes: f.notes },
+      { id: idea.id, fromItemId: item.id, title: f.title.trim(), url: f.url.trim(), shop: f.shop.trim(), priceCents: price, imageUrl: f.imageUrl.trim(), notes: f.notes },
       { onSuccess: () => setEditing(false) },
     );
   };
@@ -201,6 +201,34 @@ function AddIdea({ itemId, quantity }: { itemId: number; quantity: number }) {
       {(err || add.isError) && <p className="text-sm text-[var(--danger)]">{err || "Could not add the idea."}</p>}
       <button type="submit" className={BTN} disabled={add.isPending}>Add idea</button>
     </form>
+  );
+}
+
+/** Links one of the viewer's unlinked ideas to this item; hidden when there are none. */
+function AddSavedIdea({ itemId }: { itemId: number }) {
+  const ideas = useIdeas();
+  const patch = usePatchIdea();
+  const saved = (ideas.data ?? []).filter((i) => i.itemId === null && i.isMine);
+  if (saved.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <Field label="Add from your saved ideas">
+        <select className={INPUT} value="" disabled={patch.isPending}
+          onChange={(e) => e.target.value && patch.mutate({ id: Number(e.target.value), itemId, fromItemId: null })}>
+          <option value="">Choose an idea…</option>
+          {saved.map((i) => (
+            <option key={i.id} value={i.id}>{i.priceCents !== null ? `${i.title} · ${formatChf(i.priceCents)}` : i.title}</option>
+          ))}
+        </select>
+      </Field>
+      {patch.isError && (
+        <p role="alert" className="text-sm text-[var(--danger)]">
+          {patch.error instanceof ApiError && patch.error.code === "not_creator"
+            ? "Only the person who added this idea can move it."
+            : "Could not add the idea. Try again."}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -309,6 +337,7 @@ function ItemForm({ item, people, rooms, me, onDeleted }: { item: ItemDetail; pe
           <ul className="space-y-2">
             {item.ideas.map((i) => <IdeaRow key={i.id} item={item} idea={i} editable={item.canEdit} />)}
           </ul>
+          {item.canEdit && <AddSavedIdea itemId={item.id} />}
           {item.canEdit && <AddIdea itemId={item.id} quantity={item.quantity} />}
         </section>
       )}

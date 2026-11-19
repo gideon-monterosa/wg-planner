@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import type { ItemDetail } from "../../src/shared/types";
@@ -76,4 +76,61 @@ it("keeps the open form when a background refetch fails", async () => {
   await waitFor(() => expect(qc.getQueryState(["item", 5])?.status).toBe("error"));
   expect(screen.getByLabelText("Own price")).toBeInTheDocument();
   expect(screen.queryByText("Could not load this item.")).toBeNull();
+});
+
+describe("Add from your saved ideas", () => {
+  const saved = (over: Record<string, unknown>) => ({
+    id: 9, title: "Saved lamp", url: "", shop: "", priceCents: 1500, imageUrl: "", notes: "", isFavorite: false,
+    itemId: null, itemName: null, roomId: null, itemStatus: null, itemForPersonId: null, itemVisibleToAll: null,
+    canEdit: true, canEditItem: false, isMine: true, ...over,
+  });
+
+  function renderWithIdeas(ideas: unknown[], overrides: Partial<ItemDetail> = {}) {
+    const calls: { method: string; path: string; body?: unknown }[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (path: string, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      calls.push({ method, path, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+      const body =
+        path === "/api/items/5" || method === "PATCH" ? { ...item(1), ...overrides }
+        : path === "/api/me" ? { id: 1, name: "G", email: "g@x" }
+        : path === "/api/ideas" ? ideas
+        : [];
+      return new Response(JSON.stringify(body), { status: 200 });
+    }));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <Router hook={memoryLocation({ path: "/items/5" }).hook}><ItemPage /></Router>
+      </QueryClientProvider>,
+    );
+    return calls;
+  }
+
+  it("links the chosen unlinked idea of mine to the item", async () => {
+    const calls = renderWithIdeas([
+      saved({}),
+      saved({ id: 10, title: "Someone else's", isMine: false }),
+      saved({ id: 11, title: "Already linked", itemId: 4 }),
+    ]);
+    const select = await screen.findByLabelText("Add from your saved ideas");
+    expect(Array.from(select.querySelectorAll("option")).map((o) => o.textContent)).toEqual(["Choose an idea…", "Saved lamp · CHF 15.–"]);
+    fireEvent.change(select, { target: { value: "9" } });
+    await waitFor(() =>
+      expect(calls.filter((c) => c.method === "PATCH")).toEqual([{ method: "PATCH", path: "/api/ideas/9", body: { itemId: 5 } }]),
+    );
+  });
+
+  it("is hidden without saved ideas", async () => {
+    renderWithIdeas([saved({ itemId: 4 })]);
+    await screen.findByLabelText("Own price");
+    await act(async () => {});
+    expect(screen.queryByLabelText("Add from your saved ideas")).toBeNull();
+  });
+
+  it("is hidden when the viewer can't edit the item", async () => {
+    renderWithIdeas([saved({})], { canEdit: false });
+    await screen.findByLabelText("Own price");
+    await act(async () => {});
+    expect(screen.queryByLabelText("Add from your saved ideas")).toBeNull();
+  });
 });
