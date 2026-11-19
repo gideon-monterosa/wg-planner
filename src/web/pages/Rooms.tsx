@@ -61,7 +61,7 @@ function RoomRow({
       />
       <select
         aria-label={`Owner of ${room.name}`}
-        className={`${FIELD} min-w-0 flex-1 md:w-40 md:flex-none md:shrink-0 lg:flex-1`}
+        className={`${FIELD} min-w-32 flex-1 md:w-40 md:flex-none md:shrink-0 lg:flex-1`}
         value={room.personId ?? ""}
         onChange={(e) => patch.mutate({ id: room.id, personId: e.target.value === "" ? null : Number(e.target.value) })}
       >

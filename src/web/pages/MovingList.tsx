@@ -95,11 +95,11 @@ export default function MovingList() {
       ) : groups.length === 0 ? (
         <p className="text-[var(--muted)]">Nothing matches this filter.</p>
       ) : (
-        <div className="grid items-start gap-x-4 gap-y-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
           {groups.map((g) => (
             <section
               key={g.room?.id ?? "none"}
-              className="md:rounded-xl md:border md:border-[var(--line)] md:bg-[var(--surface)] md:px-3 md:pt-2 md:pb-1"
+              className="min-w-0 md:rounded-xl md:border md:border-[var(--line)] md:bg-[var(--surface)] md:px-3 md:pt-2 md:pb-1"
             >
               <h2 className="flex items-baseline justify-between gap-2 border-b border-[var(--line)] pb-1 text-sm font-semibold">
                 <span className="min-w-0 break-words">{g.room?.name ?? "No room"}</span>
