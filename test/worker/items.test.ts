@@ -125,6 +125,22 @@ describe("privacy", () => {
     expect(still!.item_id).toBe(id);
   });
 
+  it("switching a decided shared item to just me reverts it to needed when it loses the favorite", async () => {
+    const id = (await post<ItemDetail>("/api/items", { name: "Rug", roomId: kitchen })).id;
+    await env.DB.prepare("INSERT INTO ideas (item_id, title, is_favorite, created_by) VALUES (?, 'Hers', 1, ?)").bind(id, lena).run();
+    await env.DB.prepare("UPDATE items SET status = 'decided' WHERE id = ?").bind(id).run();
+    expect(await patchOk(id, { forMe: true })).toMatchObject({ status: "needed", ideas: [] });
+    const hers = await env.DB.prepare("SELECT item_id, is_favorite FROM ideas WHERE title = 'Hers'").first();
+    expect(hers).toEqual({ item_id: null, is_favorite: 0 });
+  });
+
+  it("an explicit status in the same patch wins over the revert", async () => {
+    const id = (await post<ItemDetail>("/api/items", { name: "Rug", roomId: kitchen })).id;
+    await env.DB.prepare("INSERT INTO ideas (item_id, title, is_favorite, created_by) VALUES (?, 'Hers', 1, ?)").bind(id, lena).run();
+    await env.DB.prepare("UPDATE items SET status = 'decided' WHERE id = ?").bind(id).run();
+    expect(await patchOk(id, { forMe: true, status: "decided" })).toMatchObject({ status: "decided" });
+  });
+
   it("switching a personal item to everyone makes it shared and editable by others", async () => {
     const id = (await post<ItemDetail>("/api/items", { name: "Desk", forMe: true })).id;
     expect(await patchOk(id, { forMe: false })).toMatchObject({ forPersonId: null });

@@ -4,6 +4,7 @@ import type { AppEnv } from "../env";
 import { fail } from "../http";
 import { parseBody, pathId } from "../route-utils";
 import { defaultPricePaid } from "../../shared/pricing";
+import { revertDecided } from "./ideas";
 import {
   assertCanEdit,
   getIdeaRows,
@@ -135,8 +136,11 @@ items.patch("/items/:id", async (c) => {
       row.id,
     );
   if (becomesPersonal) {
-    // Decision 12: other people's ideas go back to their creators' "Not linked yet" list.
-    await db.batch([unlinkOthersIdeas(db, row.id, meId), update]);
+    // Decision 12: other people's ideas go back to their creators' "Not linked yet" list. If that took the
+    // favorite, the item goes back from decided to needed, unless this patch sets a status itself.
+    const statements = [unlinkOthersIdeas(db, row.id, meId), update];
+    if (body.status === undefined) statements.push(revertDecided(db, row.id));
+    await db.batch(statements);
   } else {
     await update.run();
   }
