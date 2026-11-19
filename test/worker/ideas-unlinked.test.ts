@@ -227,9 +227,58 @@ describe("PATCH /api/ideas/:id itemId", () => {
     expect(await res.json()).toMatchObject({ error: "idea_not_on_item" });
     expect((await getItem(lamp.id)).status).toBe("needed");
   });
+
+  it("only the creator may unlink, move or make an item from an idea; others may still edit its fields", async () => {
+    const shared = await post<ItemDetail>("/api/items", { name: "Shared" });
+    const idea = (await post<ItemDetail>(`/api/items/${shared.id}/ideas`, { title: "G", priceCents: 100 })).ideas[0]!;
+    await star(shared.id, idea.id);
+    const hers = await post<ItemDetail>("/api/items", { name: "Hers" }, LENA);
+    const secret = await post<ItemDetail>("/api/items", { name: "Secret", forMe: true });
+    const before = await listIdeas();
+    const attempts = [
+      patchIdea(idea.id, { itemId: null }, LENA),
+      patchIdea(idea.id, { itemId: hers.id }, LENA),
+      patchIdea(idea.id, { itemId: secret.id }, LENA),
+      api(`/api/ideas/${idea.id}/to-item`, { method: "POST", body: {}, as: LENA }),
+    ];
+    for (const res of await Promise.all(attempts)) {
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ error: "not_creator" });
+    }
+    expect(await listIdeas()).toEqual(before);
+    expect(await getItem(shared.id)).toMatchObject({ status: "decided", ideas: [{ id: idea.id, isFavorite: true }] });
+    expect((await json<ItemSummary[]>(await api("/api/items", { as: LENA }))).map((i) => i.name)).toEqual(["Shared", "Hers"]);
+    // Re-sending the current itemId isn't a move, and field edits stay open to anyone who can edit the item.
+    const d = await json<ItemDetail>(await patchIdea(idea.id, { title: "G2", itemId: shared.id }, LENA));
+    expect(d.ideas[0]).toMatchObject({ title: "G2", isFavorite: true });
+  });
+
+  it("a field edit doesn't touch item_id or the star", async () => {
+    const a = await post<ItemDetail>("/api/items", { name: "A" });
+    const idea = (await post<ItemDetail>(`/api/items/${a.id}/ideas`, { title: "I", priceCents: 100 })).ideas[0]!;
+    // Star after the idea row was created; a PATCH of the price must not write back a stale is_favorite.
+    await star(a.id, idea.id);
+    const d = await json<ItemDetail>(await patchIdea(idea.id, { priceCents: 200 }));
+    expect(d).toMatchObject({ status: "decided", ideas: [{ isFavorite: true, priceCents: 200, title: "I" }] });
+  });
+
+  it("DELETE of a linked favorite returns the item with the status reverted", async () => {
+    const a = await post<ItemDetail>("/api/items", { name: "A" });
+    const idea = (await post<ItemDetail>(`/api/items/${a.id}/ideas`, { title: "I", priceCents: 100 })).ideas[0]!;
+    await star(a.id, idea.id);
+    const d = await json<ItemDetail>(await api(`/api/ideas/${idea.id}`, { method: "DELETE" }));
+    expect(d).toMatchObject({ id: a.id, status: "needed", ideaCount: 0, ideas: [] });
+  });
 });
 
 describe("POST /api/ideas/:id/to-item", () => {
+  it("cuts the item name at 120 characters", async () => {
+    const free = await createIdea({ title: "x".repeat(150) });
+    const d = await json<ItemDetail>(await api(`/api/ideas/${free.id}/to-item`, { method: "POST", body: {} }), 201);
+    expect(d.name).toBe("x".repeat(120));
+    expect(d.ideas[0]!.title).toBe("x".repeat(150));
+  });
+
   it("creates a shared item named after the idea and links it without starring", async () => {
     const free = await createIdea({ title: "Green armchair", priceCents: 25000 });
     const d = await json<ItemDetail>(await api(`/api/ideas/${free.id}/to-item`, { method: "POST", body: {} }), 201);

@@ -146,10 +146,22 @@ async function loadLinkTarget(db: D1Database, id: number, meId: number): Promise
   return item;
 }
 
-/** The same rule as unstarring: the item goes back from decided to needed. */
+/** Linking, moving, unlinking and to-item are for the idea's creator only (checked after the 404). */
+function assertCreator(idea: IdeaDbRow, meId: number): void {
+  if (idea.created_by !== meId) fail(403, "not_creator", "Only the person who added this idea can move it");
+}
+
+/**
+ * The same rule as unstarring: the item goes back from decided to needed, unless it still has a favorite
+ * (guards against a concurrent star landing between our read and this write).
+ */
 function revertDecided(db: D1Database, itemId: number): D1PreparedStatement {
   return db
-    .prepare("UPDATE items SET status = 'needed', updated_at = datetime('now') WHERE id = ? AND status = 'decided'")
+    .prepare(
+      `UPDATE items SET status = 'needed', updated_at = datetime('now')
+       WHERE id = ? AND status = 'decided'
+         AND NOT EXISTS (SELECT 1 FROM ideas WHERE item_id = items.id AND is_favorite = 1)`,
+    )
     .bind(itemId);
 }
 
@@ -215,30 +227,38 @@ ideas.patch("/ideas/:id", async (c) => {
   const meId = c.var.me.id;
   const idea = await loadEditableIdea(db, pathId(c, "Idea"), meId);
   const body = await parseBody(c, patchBody);
-  if (body.itemId != null) await loadLinkTarget(db, body.itemId, meId);
-  const nextItemId = body.itemId !== undefined ? body.itemId : idea.item_id;
-  const unstar = nextItemId !== idea.item_id && idea.is_favorite === 1;
-  const link = body.url ?? idea.url;
-  const statements = [
-    db
-      .prepare(
-        `UPDATE ideas SET item_id = ?, is_favorite = ?, title = ?, url = ?, shop = ?, price_cents = ?, image_url = ?,
-           notes = ?, updated_at = datetime('now') WHERE id = ?`,
-      )
-      .bind(
-        nextItemId,
-        unstar ? 0 : idea.is_favorite,
-        body.title ?? idea.title,
-        link,
-        body.shop ?? (body.url !== undefined ? shopFromUrl(link) : idea.shop),
-        body.priceCents !== undefined ? body.priceCents : idea.price_cents,
-        body.imageUrl ?? idea.image_url,
-        body.notes ?? idea.notes,
-        idea.id,
-      ),
-  ];
-  if (unstar) statements.push(revertDecided(db, idea.item_id!));
-  await db.batch(statements);
+  const moving = body.itemId !== undefined && body.itemId !== idea.item_id;
+  if (moving) assertCreator(idea, meId);
+  if (moving && body.itemId !== null) await loadLinkTarget(db, body.itemId!, meId);
+  // Only the fields sent are written, so a concurrent edit of another field isn't overwritten.
+  const sets: string[] = [];
+  const values: unknown[] = [];
+  const set = (column: string, value: unknown) => {
+    sets.push(`${column} = ?`);
+    values.push(value);
+  };
+  if (moving) {
+    set("item_id", body.itemId);
+    // Moving or unlinking clears the star; read at write time, not from the row loaded above.
+    sets.push("is_favorite = 0");
+  }
+  if (body.title !== undefined) set("title", body.title);
+  if (body.url !== undefined) set("url", body.url);
+  if (body.shop !== undefined) set("shop", body.shop);
+  else if (body.url !== undefined) set("shop", shopFromUrl(body.url));
+  if (body.priceCents !== undefined) set("price_cents", body.priceCents);
+  if (body.imageUrl !== undefined) set("image_url", body.imageUrl);
+  if (body.notes !== undefined) set("notes", body.notes);
+  if (sets.length > 0) {
+    const statements = [
+      db
+        .prepare(`UPDATE ideas SET ${sets.join(", ")}, updated_at = datetime('now') WHERE id = ?`)
+        .bind(...values, idea.id),
+    ];
+    // The revert itself is guarded: it only applies when the old item has no favorite left after the move.
+    if (moving && idea.item_id !== null && idea.is_favorite === 1) statements.push(revertDecided(db, idea.item_id));
+    await db.batch(statements);
+  }
   return c.json(await ideaResponse(db, idea.id, meId));
 });
 
@@ -259,6 +279,7 @@ ideas.post("/ideas/:id/to-item", async (c) => {
   const db = c.env.DB;
   const meId = c.var.me.id;
   const idea = await loadEditableIdea(db, pathId(c, "Idea"), meId);
+  assertCreator(idea, meId);
   const body = await parseBody(c, toItemBody);
   const insert = await insertItemStatement(db, { name: idea.title.slice(0, 120).trim(), roomId: body.roomId }, meId);
   const statements = [
@@ -269,8 +290,14 @@ ideas.post("/ideas/:id/to-item", async (c) => {
       .bind(idea.id),
   ];
   if (idea.is_favorite === 1) statements.push(revertDecided(db, idea.item_id!));
-  const [created] = await db.batch<{ id: number }>(statements);
-  return c.json(await getItemDetail(db, created!.results[0]!.id, meId), 201);
+  const [created, linked] = await db.batch<{ id: number }>(statements);
+  const newItemId = created!.results[0]!.id;
+  if (linked!.meta.changes !== 1) {
+    // The idea vanished between the load and the batch: drop the orphan item.
+    await db.prepare("DELETE FROM items WHERE id = ?").bind(newItemId).run();
+    fail(404, "not_found", "Idea not found");
+  }
+  return c.json(await getItemDetail(db, newItemId, meId), 201);
 });
 
 ideas.put("/items/:id/favorite", async (c) => {
