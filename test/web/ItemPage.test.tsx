@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -17,9 +17,9 @@ function item(quantity: number): ItemDetail {
   };
 }
 
-function renderItem(quantity: number) {
+function renderItem(quantity: number, overrides: Partial<ItemDetail> = {}) {
   vi.stubGlobal("fetch", vi.fn(async (path: string) => {
-    const body = path === "/api/items/5" ? item(quantity) : path === "/api/me" ? { id: 1, name: "G", email: "g@x" } : [];
+    const body = path === "/api/items/5" ? { ...item(quantity), ...overrides } : path === "/api/me" ? { id: 1, name: "G", email: "g@x" } : [];
     return new Response(JSON.stringify(body), { status: 200 });
   }));
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -45,4 +45,35 @@ it("keeps the plain labels for a single piece", async () => {
   expect(screen.getByLabelText("New idea price")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Edit" }));
   expect(screen.getByLabelText("Idea price")).toBeInTheDocument();
+  expect(screen.queryByText(/^1 × /)).toBeNull();
+});
+
+it("shows the per-piece price next to the total when the quantity is above 1", async () => {
+  renderItem(4);
+  expect(await screen.findByText("4 × CHF 19.–")).toBeInTheDocument();
+});
+
+it("shows a hint when an item has no ideas yet", async () => {
+  renderItem(1, { ideas: [], ideaCount: 0 });
+  expect(await screen.findByText("No ideas yet. Paste a link below.")).toBeInTheDocument();
+});
+
+it("keeps the open form when a background refetch fails", async () => {
+  let calls = 0;
+  vi.stubGlobal("fetch", vi.fn(async (path: string) => {
+    if (path === "/api/items/5" && ++calls > 1) return new Response(JSON.stringify({ error: "internal" }), { status: 500 });
+    const body = path === "/api/items/5" ? item(1) : path === "/api/me" ? { id: 1, name: "G", email: "g@x" } : [];
+    return new Response(JSON.stringify(body), { status: 200 });
+  }));
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={qc}>
+      <Router hook={memoryLocation({ path: "/items/5" }).hook}><ItemPage /></Router>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByLabelText("Own price")).toBeInTheDocument();
+  await act(() => qc.refetchQueries({ queryKey: ["item", 5] }));
+  await waitFor(() => expect(qc.getQueryState(["item", 5])?.status).toBe("error"));
+  expect(screen.getByLabelText("Own price")).toBeInTheDocument();
+  expect(screen.queryByText("Could not load this item.")).toBeNull();
 });

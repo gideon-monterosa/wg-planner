@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
@@ -43,11 +43,20 @@ function renderApp(path: string, people = PEOPLE) {
   return Object.assign(loc, { qc });
 }
 
-it("has two bottom tabs and a gear linking to settings", async () => {
+const topNav = () => screen.getByTestId("top-nav");
+const bottomNav = () => screen.getByTestId("bottom-nav");
+const tabLabels = (nav: HTMLElement) => Array.from(nav.querySelectorAll("a")).map((a) => a.textContent);
+
+it("renders both navs with three tabs, and a gear linking to settings", async () => {
   renderApp("/");
-  const nav = await screen.findByRole("navigation");
-  const links = Array.from(nav.querySelectorAll("a")).map((a) => a.textContent);
-  expect(links).toEqual(["List", "Overview"]);
+  await screen.findByTestId("top-nav");
+  expect(tabLabels(topNav())).toEqual(["List", "Ideas", "Overview"]);
+  expect(tabLabels(bottomNav())).toEqual(["List", "Ideas", "Overview"]);
+  expect(topNav()).toHaveClass("hidden", "md:flex");
+  expect(bottomNav()).toHaveClass("md:hidden");
+  for (const nav of [topNav(), bottomNav()]) {
+    expect(Array.from(nav.querySelectorAll("a")).map((a) => a.getAttribute("href"))).toEqual(["/", "/ideas", "/overview"]);
+  }
   expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("href", "/settings");
 });
 
@@ -120,14 +129,16 @@ it("makes the background inert only while the dialog is open", async () => {
   await screen.findByRole("dialog");
   const main = screen.getByRole("main");
   expect(main).toHaveAttribute("inert");
-  expect(screen.getByRole("navigation")).toHaveAttribute("inert");
+  expect(bottomNav()).toHaveAttribute("inert");
+  expect(topNav().closest("[inert]")).not.toBeNull();
   expect(document.querySelector("header")).toHaveAttribute("inert");
   expect(screen.getByRole("dialog").closest("[inert]")).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Close" }));
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   expect(loc.history?.at(-1)).toBe("/");
   expect(screen.getByRole("main")).not.toHaveAttribute("inert");
-  expect(screen.getByRole("navigation")).not.toHaveAttribute("inert");
+  expect(bottomNav()).not.toHaveAttribute("inert");
+  expect(topNav().closest("[inert]")).toBeNull();
 });
 
 it("closes on a swipe past the threshold but not a short one", async () => {
@@ -146,31 +157,104 @@ it("closes on a swipe past the threshold but not a short one", async () => {
   await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
 });
 
-const activeTabs = () =>
-  Array.from(screen.getByRole("navigation").querySelectorAll("a[aria-current]")).map((a) => a.textContent);
+/** Active tab labels in both navs; they must always agree. */
+function activeTabs() {
+  const active = (nav: HTMLElement) => Array.from(nav.querySelectorAll("a[aria-current]")).map((a) => a.textContent);
+  const top = active(topNav());
+  expect(active(bottomNav())).toEqual(top);
+  return top;
+}
 
-it("marks no tab active on /settings or an unknown route", async () => {
+it("marks no tab active on /settings, and marks the gear current", async () => {
   renderApp("/settings");
   await screen.findByRole("heading", { name: "Rooms" });
   expect(activeTabs()).toEqual([]);
+  expect(screen.getByRole("link", { name: "Settings" })).toHaveAttribute("aria-current", "page");
 });
 
-it("marks no tab active on not found", async () => {
+it("shows a not-found page with a way back, and no active tab, on an unknown route", async () => {
   renderApp("/nope");
-  await screen.findByText("Not found.");
+  expect(await screen.findByRole("heading", { name: "Page not found" })).toBeInTheDocument();
+  expect(screen.getByRole("link", { name: "Back to the list" })).toHaveAttribute("href", "/");
   expect(activeTabs()).toEqual([]);
+  expect(screen.getByRole("link", { name: "Settings" })).not.toHaveAttribute("aria-current");
 });
 
-it("marks List active on / and on an item, Overview on /overview", async () => {
+it("marks List active on /", async () => {
+  renderApp("/");
+  await screen.findByRole("button", { name: /Chair/ });
+  expect(activeTabs()).toEqual(["List"]);
+});
+
+it("marks List active on an item", async () => {
   renderApp("/items/1");
   await screen.findByRole("dialog");
   expect(activeTabs()).toEqual(["List"]);
 });
 
+it("marks Ideas active on /ideas and shows the Ideas page", async () => {
+  renderApp("/ideas");
+  expect(await screen.findByRole("heading", { name: "Ideas" })).toBeInTheDocument();
+  expect(activeTabs()).toEqual(["Ideas"]);
+  expect(screen.queryByRole("group", { name: "Filter" })).toBeNull();
+});
+
 it("marks Overview active on /overview", async () => {
   renderApp("/overview");
-  await screen.findByRole("navigation");
+  await screen.findByTestId("top-nav");
   expect(activeTabs()).toEqual(["Overview"]);
+});
+
+it("shows not found for a non-numeric item id instead of loading forever", async () => {
+  renderApp("/items/abc");
+  const dialog = await screen.findByRole("dialog");
+  expect(await within(dialog).findByText("This item doesn't exist or isn't shared with you.")).toBeInTheDocument();
+  expect(within(dialog).queryByText("Loading…")).toBeNull();
+});
+
+it("'Back to the list' on a deep-linked missing item closes the dialog with replace", async () => {
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  const loc = renderApp("/items/abc");
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(await within(dialog).findByRole("button", { name: "Back to the list" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(back).not.toHaveBeenCalled();
+  expect(loc.history).toEqual(["/"]);
+});
+
+it("'Back to the list' after opening a missing item from the list goes back, not forward", async () => {
+  const back = vi.spyOn(window.history, "back").mockImplementation(() => {});
+  const loc = renderApp("/");
+  await screen.findByRole("button", { name: /Chair/ });
+  act(() => loc.navigate("/items/abc"));
+  const dialog = await screen.findByRole("dialog");
+  fireEvent.click(await within(dialog).findByRole("button", { name: "Back to the list" }));
+  expect(back).toHaveBeenCalledTimes(1);
+  expect(loc.history).toEqual(["/", "/items/abc"]);
+});
+
+it("shows the list error with a working Try again button", async () => {
+  let fail = true;
+  vi.stubGlobal("fetch", vi.fn(async (p: string) => {
+    if (p === "/api/items" && fail) return new Response(JSON.stringify({ error: "internal" }), { status: 500 });
+    const body =
+      p === "/api/me" ? { id: 1, name: "Gideon", email: "g@x" }
+      : p === "/api/people" ? PEOPLE
+      : p === "/api/rooms" ? ROOMS
+      : p === "/api/items" ? [SUMMARY]
+      : [];
+    return new Response(JSON.stringify(body), { status: 200 });
+  }));
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  render(
+    <QueryClientProvider client={qc}>
+      <Router hook={memoryLocation({ path: "/" }).hook}><App /></Router>
+    </QueryClientProvider>,
+  );
+  expect(await screen.findByRole("alert")).toHaveTextContent("Couldn't load the list.");
+  fail = false;
+  fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  expect(await screen.findByRole("button", { name: /Chair/ })).toBeInTheDocument();
 });
 
 it("shows the first-run hint with one person", async () => {

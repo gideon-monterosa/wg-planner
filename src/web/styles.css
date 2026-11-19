@@ -1,16 +1,23 @@
 @import "tailwindcss";
 
 :root {
-  --own: #2a78d6;
+  color-scheme: light;
+  --own: #1f6fc9;
   --shared: #eb6834;
-  --together: #1baf7a;
-  --unassigned: #b4b2ad;
-  --accent: #2a78d6;
+  --together: #118a5f;
+  --unassigned: #8f8d87;
+  /* --accent is for text and outlines; --accent-fill is the background of filled buttons (white text on it). */
+  --accent: #1f6fc9;
+  --accent-fill: #1f6fc9;
+  --danger: #dc2626;
   --green: #1baf7a;
   --bg: #fafaf8;
+  --surface: #ffffff;
   --fg: #1c1b19;
   --muted: #6b6a66;
+  /* --line is for dividers; --field-border is for form controls and chips (>= 3:1 against the background). */
   --line: #e4e2dc;
+  --field-border: #8f8d87;
   /* Status pill fills: dark enough for white 12px text (WCAG AA, >= 4.5:1). */
   --pill-decided: #1f66b8;
   --pill-bought: #0f7a55;
@@ -18,16 +25,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
+    color-scheme: dark;
     --own: #3987e5;
     --shared: #d95926;
     --together: #199e70;
     --unassigned: #6b6a66;
-    --accent: #3987e5;
+    --accent: #5b9ef0;
+    --accent-fill: #2563b5;
+    --danger: #f87171;
     --green: #199e70;
     --bg: #1a1917;
+    --surface: #24231f;
     --fg: #f0eee9;
     --muted: #a09e98;
     --line: #34322e;
+    --field-border: #73726d; /* 3.26:1 on --surface, 3.64:1 on --bg */
     --pill-decided: #1f66b8;
     --pill-bought: #0f7a55;
   }
@@ -38,12 +50,31 @@ body {
   color: var(--fg);
 }
 
+select option {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+/* In the base layer so utilities such as `outline-none` (the dialog panel) override it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
 .status-pill {
   display: inline-block;
   border-radius: 9999px;
   padding: 0.1rem 0.6rem;
   font-size: 0.75rem;
   line-height: 1.25rem;
+  white-space: nowrap;
   border: 1px solid transparent;
 }
 .status-needed { background: var(--line); color: var(--fg); }

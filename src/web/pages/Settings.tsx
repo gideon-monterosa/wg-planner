@@ -6,17 +6,24 @@ export default function Settings() {
   return (
     <div>
       <div className="mb-4 flex items-center gap-2">
-        <Link href="/" aria-label="Back" className="-ml-2 rounded px-2 py-1 text-xl">
+        {/* From 768px the top bar holds the tabs, so the back arrow is phone-only. */}
+        <Link
+          href="/"
+          aria-label="Back"
+          className="-ml-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded text-xl md:hidden"
+        >
           ←
         </Link>
-        <h1 className="text-lg font-semibold">Settings</h1>
+        <h1 className="text-xl font-semibold">Settings</h1>
       </div>
-      <section aria-label="Rooms" className="mb-8">
-        <Rooms />
-      </section>
-      <section aria-label="People">
-        <People />
-      </section>
+      <div className="space-y-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-8 lg:space-y-0">
+        <section aria-label="Rooms">
+          <Rooms />
+        </section>
+        <section aria-label="People">
+          <People />
+        </section>
+      </div>
     </div>
   );
 }

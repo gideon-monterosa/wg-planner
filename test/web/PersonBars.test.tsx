@@ -12,7 +12,8 @@ it("renders a bar per person and hides empty together/unassigned rows", () => {
   expect(screen.getByText("Gideon")).toBeInTheDocument();
   expect(screen.getByText("CHF 248.–")).toBeInTheDocument();
   expect(screen.queryByText("Paid together")).toBeNull();
-  expect(screen.getByText("Nobody set yet")).toBeInTheDocument();
+  // Once as the row label and once in the legend, which uses the same words.
+  expect(screen.getAllByText("Nobody set yet")).toHaveLength(2);
 });
 
 it("shows a tooltip on segment focus and a table view", () => {
@@ -21,6 +22,21 @@ it("shows a tooltip on segment focus and a table view", () => {
   expect(screen.getByRole("tooltip")).toHaveTextContent("Gideon · own things · CHF 229.–");
   fireEvent.click(screen.getByRole("button", { name: "Show as table" }));
   expect(screen.getByRole("table")).toBeInTheDocument();
+});
+
+it("shows a tooltip on tap, for touch screens", () => {
+  render(<PersonBars mode={mode} />);
+  fireEvent.click(screen.getByRole("img", { name: /Gideon · shared things/ }));
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Gideon · shared things · CHF 19.–");
+});
+
+it("hides the legend in table view and drops the CHF prefix from cells", () => {
+  render(<PersonBars mode={mode} />);
+  expect(screen.getByText("Own things")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Show as table" }));
+  expect(screen.queryByText("Own things")).toBeNull();
+  expect(screen.getByRole("columnheader", { name: "Total (CHF)" })).toBeInTheDocument();
+  expect(screen.getByRole("cell", { name: "248.–" })).toBeInTheDocument();
 });
 
 it("shows an empty message when everything is 0", () => {

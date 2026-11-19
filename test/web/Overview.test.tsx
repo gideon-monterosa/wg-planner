@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import Overview from "../../src/web/pages/Overview";
 
@@ -16,4 +16,7 @@ it("explains exactly what Planned counts", async () => {
       "Planned counts what was paid for bought items, otherwise the starred idea's price, otherwise the item's own price. Price ranges and owned items count as zero.",
     ),
   ).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Actually spent" }));
+  expect(screen.getByText("Actually spent counts the price paid for bought items.")).toBeInTheDocument();
+  expect(screen.queryByText(/^Planned counts/)).toBeNull();
 });
